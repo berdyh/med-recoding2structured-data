@@ -130,6 +130,12 @@ class ConfigManager:
                 self.config['llm']['bedrock'] = {}
             self.config['llm']['bedrock']['api_key'] = os.getenv('BEDROCK_API_KEY')
         
+        # Custom endpoint specific fields
+        if os.getenv('BEDROCK_TEAM_ID'):
+            if 'bedrock' not in self.config['llm']:
+                self.config['llm']['bedrock'] = {}
+            self.config['llm']['bedrock']['team_id'] = os.getenv('BEDROCK_TEAM_ID')
+        
         # AWS Bedrock - Standard boto3 credentials (fallback)
         if os.getenv('AWS_ACCESS_KEY_ID'):
             if 'bedrock' not in self.config['llm']:

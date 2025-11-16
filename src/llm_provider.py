@@ -108,6 +108,8 @@ class LLMProviderManager:
                 credentials['use_custom_endpoint'] = True
                 credentials['api_endpoint'] = bedrock_config.get('api_endpoint')
                 credentials['api_key'] = bedrock_config.get('api_key')
+                credentials['api_token'] = bedrock_config.get('api_key')  # api_token is same as api_key
+                credentials['team_id'] = bedrock_config.get('team_id')
                 
                 if not credentials['api_endpoint']:
                     raise LLMProviderError(

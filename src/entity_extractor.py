@@ -149,8 +149,11 @@ class ClinicalEntityExtractor:
                     if credentials.get('use_custom_endpoint'):
                         # Use custom API Gateway endpoint
                         # Prepare payload for custom endpoint
-                        # Match LangExtract's expected format: text_or_documents instead of text
+                        # The endpoint expects: team_id, api_token, model, text_or_documents, prompt_description, examples
                         payload = {
+                            'team_id': credentials.get('team_id'),
+                            'api_token': credentials.get('api_token') or credentials.get('api_key'),
+                            'model': model_id,  # Use 'model' not 'model_id' for this endpoint
                             'text_or_documents': text,
                             'prompt_description': prompt_description,
                             'examples': [
@@ -166,9 +169,25 @@ class ClinicalEntityExtractor:
                                     ]
                                 }
                                 for ex in examples
-                            ],
-                            'model_id': model_id
+                            ]
                         }
+                        
+                        # Validate required fields
+                        if not payload.get('team_id'):
+                            raise ExtractionError(
+                                "team_id is required for custom Bedrock endpoint. "
+                                "Set BEDROCK_TEAM_ID environment variable."
+                            )
+                        if not payload.get('api_token'):
+                            raise ExtractionError(
+                                "api_token is required for custom Bedrock endpoint. "
+                                "Set BEDROCK_API_KEY environment variable."
+                            )
+                        if not payload.get('model'):
+                            raise ExtractionError(
+                                "model is required for custom Bedrock endpoint. "
+                                "Set MODEL_ID environment variable."
+                            )
                         
                         # Invoke custom endpoint
                         response = self.llm_provider.invoke_custom_endpoint(payload)
