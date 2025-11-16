@@ -1,2 +1,0 @@
-consultation_id,consultation_session_id,patient_id,doctor_id,consultation_datetime,consultation_type,chief_complaint,history_of_present_illness,created_at
-ff408614-5abe-4eb8-ab62-9041af56486a,8f0ec83b-b3dc-49a3-9b73-1ef3b36193e2,6dc316e8-2639-4f92-9251-e03f079836b0,9d4dc2d7-64e8-48e1-bb45-aff71e1adbfa,2025-11-16T11:00:03.767326Z,GP Consultation,,,2025-11-16T11:00:03.765751+00:00

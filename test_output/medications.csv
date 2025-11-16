@@ -1,1 +1,0 @@
-prescription_id,consultation_session_id,patient_id,doctor_id,medication_name,dosage_value,dosage_unit,frequency,duration_value,duration_unit,route_of_administration,indication,prescribed_at
