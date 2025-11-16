@@ -57,3 +57,6 @@ htmlcov/
 
 # Docker
 *.tar
+
+# Structural
+Unstructured2structured_with_db_schema/
