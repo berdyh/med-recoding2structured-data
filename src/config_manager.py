@@ -103,6 +103,17 @@ class ConfigManager:
         if os.getenv('LANGEXTRACT_API_KEY'):
             self.config['llm']['gemini']['api_key'] = os.getenv('LANGEXTRACT_API_KEY')
         
+        # AWS Bedrock credentials
+        if os.getenv('AWS_ACCESS_KEY_ID'):
+            if 'bedrock' not in self.config['llm']:
+                self.config['llm']['bedrock'] = {}
+            self.config['llm']['bedrock']['aws_access_key_id'] = os.getenv('AWS_ACCESS_KEY_ID')
+        
+        if os.getenv('AWS_SECRET_ACCESS_KEY'):
+            if 'bedrock' not in self.config['llm']:
+                self.config['llm']['bedrock'] = {}
+            self.config['llm']['bedrock']['aws_secret_access_key'] = os.getenv('AWS_SECRET_ACCESS_KEY')
+        
         if os.getenv('AWS_REGION'):
             self.config['llm']['bedrock']['region'] = os.getenv('AWS_REGION')
         

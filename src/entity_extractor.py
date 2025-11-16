@@ -109,13 +109,13 @@ class ClinicalEntityExtractor:
         
         return langextract_examples
     
-    def _extract_with_retry(self, text: str, extraction_classes: List[str], 
+    def _extract_with_retry(self, text: str, prompt_description: str, 
                            examples: List, entity_type: str) -> List[Dict]:
         """Extract entities with retry logic for API failures.
         
         Args:
             text: Text to extract from
-            extraction_classes: List of extraction class names
+            prompt_description: Description of what to extract
             examples: Few-shot examples
             entity_type: Type of entity being extracted (for logging)
             
@@ -132,14 +132,14 @@ class ClinicalEntityExtractor:
             try:
                 if provider == 'gemini':
                     api_key = credentials['api_key']
-                    model = credentials.get('model', 'gemini-2.5-pro')
+                    model_id = credentials.get('model', 'gemini-2.5-pro')
                     
                     result = lx.extract(
-                        text=text,
-                        extraction_classes=extraction_classes,
+                        text_or_documents=text,
+                        prompt_description=prompt_description,
                         examples=examples,
                         api_key=api_key,
-                        model=model
+                        model_id=model_id
                     )
                 
                 elif provider == 'bedrock':
@@ -149,8 +149,8 @@ class ClinicalEntityExtractor:
                     
                     # LangExtract supports Bedrock through custom client
                     result = lx.extract(
-                        text=text,
-                        extraction_classes=extraction_classes,
+                        text_or_documents=text,
+                        prompt_description=prompt_description,
                         examples=examples,
                         bedrock_client=bedrock_client,
                         model_id=model_id
@@ -208,11 +208,13 @@ class ClinicalEntityExtractor:
         examples_config = self.few_shot_examples.get('symptoms', [])
         examples = self._convert_to_langextract_examples(examples_config)
         
-        extraction_classes = [
-            'symptom_name', 'severity', 'duration', 'onset', 'temporal_pattern'
-        ]
+        prompt_description = """
+        Extract symptom information including symptom name, severity, duration, onset, and temporal pattern.
+        Use 'symptom_group' attribute to link related information about the same symptom.
+        Extract entities in the order they appear in the text.
+        """
         
-        return self._extract_with_retry(text, extraction_classes, examples, 'symptoms')
+        return self._extract_with_retry(text, prompt_description, examples, 'symptoms')
     
     def extract_medications(self, text: str) -> List[Dict]:
         """Extract medications with grouping.
@@ -226,11 +228,13 @@ class ClinicalEntityExtractor:
         examples_config = self.few_shot_examples.get('medications', [])
         examples = self._convert_to_langextract_examples(examples_config)
         
-        extraction_classes = [
-            'medication', 'dosage', 'route', 'frequency', 'duration', 'indication'
-        ]
+        prompt_description = """
+        Extract medication information including medication name, dosage, route, frequency, duration, and indication.
+        Use 'medication_group' attribute to group related information about the same medication.
+        Extract entities in the order they appear in the text.
+        """
         
-        return self._extract_with_retry(text, extraction_classes, examples, 'medications')
+        return self._extract_with_retry(text, prompt_description, examples, 'medications')
     
     def extract_diagnoses(self, text: str) -> List[Dict]:
         """Extract diagnoses with certainty.
@@ -244,11 +248,13 @@ class ClinicalEntityExtractor:
         examples_config = self.few_shot_examples.get('diagnoses', [])
         examples = self._convert_to_langextract_examples(examples_config)
         
-        extraction_classes = [
-            'diagnosis', 'certainty', 'clinical_features'
-        ]
+        prompt_description = """
+        Extract diagnosis information including diagnosis name, diagnostic certainty, and clinical features.
+        Use 'diagnosis_group' attribute to link related information about the same diagnosis.
+        Extract entities in the order they appear in the text.
+        """
         
-        return self._extract_with_retry(text, extraction_classes, examples, 'diagnoses')
+        return self._extract_with_retry(text, prompt_description, examples, 'diagnoses')
     
     def extract_vital_signs(self, text: str) -> List[Dict]:
         """Extract vital signs measurements.
@@ -262,12 +268,13 @@ class ClinicalEntityExtractor:
         examples_config = self.few_shot_examples.get('vital_signs', [])
         examples = self._convert_to_langextract_examples(examples_config)
         
-        extraction_classes = [
-            'temperature', 'blood_pressure', 'heart_rate', 
-            'oxygen_saturation', 'respiratory_rate'
-        ]
+        prompt_description = """
+        Extract vital signs measurements including temperature, blood pressure, heart rate, 
+        oxygen saturation, and respiratory rate.
+        Extract entities in the order they appear in the text.
+        """
         
-        return self._extract_with_retry(text, extraction_classes, examples, 'vital_signs')
+        return self._extract_with_retry(text, prompt_description, examples, 'vital_signs')
     
     def extract_physical_exam(self, text: str) -> List[Dict]:
         """Extract physical examination findings.
@@ -281,11 +288,13 @@ class ClinicalEntityExtractor:
         examples_config = self.few_shot_examples.get('physical_exam', [])
         examples = self._convert_to_langextract_examples(examples_config)
         
-        extraction_classes = [
-            'examination_type', 'anatomical_site', 'findings', 'severity'
-        ]
+        prompt_description = """
+        Extract physical examination findings including examination type, anatomical site, findings, and severity.
+        Use 'exam_group' attribute to link related information about the same examination.
+        Extract entities in the order they appear in the text.
+        """
         
-        return self._extract_with_retry(text, extraction_classes, examples, 'physical_exam')
+        return self._extract_with_retry(text, prompt_description, examples, 'physical_exam')
     
     def extract_red_flags(self, text: str) -> List[Dict]:
         """Extract warning signs.
@@ -299,11 +308,13 @@ class ClinicalEntityExtractor:
         examples_config = self.few_shot_examples.get('red_flags', [])
         examples = self._convert_to_langextract_examples(examples_config)
         
-        extraction_classes = [
-            'warning_description', 'warning_type', 'severity'
-        ]
+        prompt_description = """
+        Extract red flags and warning signs including warning description, warning type, and severity.
+        Use 'warning_group' attribute to link related information about the same warning.
+        Extract entities in the order they appear in the text.
+        """
         
-        return self._extract_with_retry(text, extraction_classes, examples, 'red_flags')
+        return self._extract_with_retry(text, prompt_description, examples, 'red_flags')
     
     def extract_follow_up(self, text: str) -> List[Dict]:
         """Extract follow-up plans.
@@ -317,11 +328,13 @@ class ClinicalEntityExtractor:
         examples_config = self.few_shot_examples.get('follow_up', [])
         examples = self._convert_to_langextract_examples(examples_config)
         
-        extraction_classes = [
-            'follow_up_type', 'timing', 'condition', 'action', 'priority'
-        ]
+        prompt_description = """
+        Extract follow-up plan information including follow-up type, timing, condition, action, and priority.
+        Use 'followup_group' attribute to link related information about the same follow-up item.
+        Extract entities in the order they appear in the text.
+        """
         
-        return self._extract_with_retry(text, extraction_classes, examples, 'follow_up')
+        return self._extract_with_retry(text, prompt_description, examples, 'follow_up')
     
     def extract_all(self, text: str) -> Dict[str, List[Dict]]:
         """Extract all entity types in one pass.

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  extractor:
+    build: .
+    volumes:
+      - ./input:/input:ro
+      - ./output:/output
+    environment:
+      - LANGEXTRACT_API_KEY=${LANGEXTRACT_API_KEY}
+      - AWS_BEDROCK_ENABLED=${AWS_BEDROCK_ENABLED:-false}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - EXTRACTION_CONFIDENCE_THRESHOLD=${EXTRACTION_CONFIDENCE_THRESHOLD:-0.7}
+    command: ["--input", "/input/consultation.md", "--use-test-data"]

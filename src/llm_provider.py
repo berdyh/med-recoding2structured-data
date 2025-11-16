@@ -77,10 +77,18 @@ class LLMProviderManager:
                 'anthropic.claude-sonnet-4-5-20250929-v1:0'
             )
             
-            return {
+            credentials = {
                 'region': region,
                 'model_id': model_id
             }
+            
+            # Add explicit AWS credentials if provided
+            if 'aws_access_key_id' in self.config.get('bedrock', {}):
+                credentials['aws_access_key_id'] = self.config['bedrock']['aws_access_key_id']
+            if 'aws_secret_access_key' in self.config.get('bedrock', {}):
+                credentials['aws_secret_access_key'] = self.config['bedrock']['aws_secret_access_key']
+            
+            return credentials
         
         raise LLMProviderError(f"Unknown provider: {self.provider}")
     
@@ -133,16 +141,21 @@ class LLMProviderManager:
         credentials = self.get_api_credentials()
         region = credentials.get('region')
         
+        # Prepare boto3 client kwargs
+        client_kwargs = {'region_name': region}
+        
+        # Add explicit credentials if provided
+        if 'aws_access_key_id' in credentials and 'aws_secret_access_key' in credentials:
+            client_kwargs['aws_access_key_id'] = credentials['aws_access_key_id']
+            client_kwargs['aws_secret_access_key'] = credentials['aws_secret_access_key']
+        
         try:
             # Create Bedrock runtime client
-            self._bedrock_client = boto3.client(
-                'bedrock-runtime',
-                region_name=region
-            )
+            self._bedrock_client = boto3.client('bedrock-runtime', **client_kwargs)
             
             # Verify we can access the service by listing foundation models
             # This validates both credentials and service availability
-            bedrock_client = boto3.client('bedrock', region_name=region)
+            bedrock_client = boto3.client('bedrock', **client_kwargs)
             bedrock_client.list_foundation_models(
                 byProvider='anthropic'
             )
@@ -177,9 +190,15 @@ class LLMProviderManager:
         
         if not self._bedrock_client:
             credentials = self.get_api_credentials()
-            self._bedrock_client = boto3.client(
-                'bedrock-runtime',
-                region_name=credentials.get('region')
-            )
+            
+            # Prepare boto3 client kwargs
+            client_kwargs = {'region_name': credentials.get('region')}
+            
+            # Add explicit credentials if provided
+            if 'aws_access_key_id' in credentials and 'aws_secret_access_key' in credentials:
+                client_kwargs['aws_access_key_id'] = credentials['aws_access_key_id']
+                client_kwargs['aws_secret_access_key'] = credentials['aws_secret_access_key']
+            
+            self._bedrock_client = boto3.client('bedrock-runtime', **client_kwargs)
         
         return self._bedrock_client
