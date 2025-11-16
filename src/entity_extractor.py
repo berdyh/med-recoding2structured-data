@@ -143,18 +143,49 @@ class ClinicalEntityExtractor:
                     )
                 
                 elif provider == 'bedrock':
-                    # For Bedrock, we need to use boto3 client
-                    bedrock_client = self.llm_provider.get_bedrock_client()
                     model_id = credentials.get('model_id')
                     
-                    # LangExtract supports Bedrock through custom client
-                    result = lx.extract(
-                        text_or_documents=text,
-                        prompt_description=prompt_description,
-                        examples=examples,
-                        bedrock_client=bedrock_client,
-                        model_id=model_id
-                    )
+                    # Check if using custom endpoint
+                    if credentials.get('use_custom_endpoint'):
+                        # Use custom API Gateway endpoint
+                        # Prepare payload for custom endpoint
+                        payload = {
+                            'text': text,
+                            'prompt_description': prompt_description,
+                            'examples': [
+                                {
+                                    'text': ex.text,
+                                    'extractions': [
+                                        {
+                                            'class': e.extraction_class,
+                                            'text': e.extraction_text,
+                                            'attributes': e.attributes if hasattr(e, 'attributes') else {}
+                                        }
+                                        for e in ex.extractions
+                                    ]
+                                }
+                                for ex in examples
+                            ],
+                            'model_id': model_id
+                        }
+                        
+                        # Invoke custom endpoint
+                        response = self.llm_provider.invoke_custom_endpoint(payload)
+                        
+                        # Parse response - assuming it returns LangExtract-compatible format
+                        result = response
+                    else:
+                        # Standard boto3 Bedrock client
+                        bedrock_client = self.llm_provider.get_bedrock_client()
+                        
+                        # LangExtract supports Bedrock through custom client
+                        result = lx.extract(
+                            text_or_documents=text,
+                            prompt_description=prompt_description,
+                            examples=examples,
+                            bedrock_client=bedrock_client,
+                            model_id=model_id
+                        )
                 
                 else:
                     raise ExtractionError(f"Unsupported provider: {provider}")
