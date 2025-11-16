@@ -1,0 +1,1 @@
+symptom_id,consultation_session_id,patient_id,symptom_name,symptom_code,severity,duration_days,onset_date,temporal_pattern,confidence_score,clinical_modifiers,extracted_at

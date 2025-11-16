@@ -1,0 +1,58 @@
+{
+  "extraction_timestamp": "2025-11-16T11:00:03.832217+00:00",
+  "consultation_session_id": "8f0ec83b-b3dc-49a3-9b73-1ef3b36193e2",
+  "files": [
+    {
+      "table": "consultation_sessions",
+      "file": "consultation_sessions.csv",
+      "row_count": 1
+    },
+    {
+      "table": "consultations",
+      "file": "consultations.csv",
+      "row_count": 1
+    },
+    {
+      "table": "symptoms",
+      "file": "symptoms.csv",
+      "row_count": 0
+    },
+    {
+      "table": "medications",
+      "file": "medications.csv",
+      "row_count": 0
+    },
+    {
+      "table": "diagnoses",
+      "file": "diagnoses.csv",
+      "row_count": 0
+    },
+    {
+      "table": "clinical_assessment_extracted",
+      "file": "clinical_assessment_extracted.csv",
+      "row_count": 0
+    },
+    {
+      "table": "vital_signs",
+      "file": "vital_signs.csv",
+      "row_count": 0
+    },
+    {
+      "table": "physical_examination_findings",
+      "file": "physical_examination_findings.csv",
+      "row_count": 0
+    },
+    {
+      "table": "red_flags_and_warnings",
+      "file": "red_flags_and_warnings.csv",
+      "row_count": 0
+    },
+    {
+      "table": "follow_up_plan_extracted",
+      "file": "follow_up_plan_extracted.csv",
+      "row_count": 0
+    }
+  ],
+  "total_entities_extracted": 0,
+  "processing_time_seconds": 131.36
+}
