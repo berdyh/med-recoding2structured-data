@@ -1,53 +1,214 @@
-# Output Files
+# Output Documentation
 
-This directory contains generated CSV files from the GP Consultation Data Extraction System.
+This directory contains the generated CSV files and manifest from the extraction process.
 
-## Output Structure
+## Output Files
 
-The system generates one CSV file per database table, plus a manifest file.
+After running the extraction, this directory will contain:
 
-### Generated Files
+### CSV Files (Database Tables)
 
-1. `consultation_sessions.csv` - Session metadata and full transcript
-2. `consultations.csv` - Structured consultation record
-3. `symptoms.csv` - Patient-reported symptoms
-4. `medications.csv` - Prescribed medications
-5. `associated_findings.csv` - Objective clinical findings
-6. `physical_examination_findings.csv` - Physical exam results
-7. `review_of_systems.csv` - Systematic body system review
-8. `vital_signs.csv` - Clinical measurements
-9. `laboratory_results.csv` - Lab test results
-10. `clinical_assessment_extracted.csv` - Diagnostic assessment
-11. `red_flags_and_warnings.csv` - Warning signs
-12. `follow_up_plan_extracted.csv` - Follow-up instructions
-13. `allergies.csv` - Patient allergies
-14. `diagnoses.csv` - Final diagnoses
-15. `severity_levels.csv` - Lookup table for severity values
-16. `diagnostic_certainty.csv` - Lookup table for certainty levels
-17. `manifest.json` - Metadata about generated files
+1. **consultation_sessions.csv** - Session metadata and full transcript
+2. **consultations.csv** - Structured consultation record
+3. **symptoms.csv** - Patient-reported symptoms
+4. **medications.csv** - Prescribed medications
+5. **diagnoses.csv** - Final diagnoses
+6. **clinical_assessment_extracted.csv** - Diagnostic assessment
+7. **vital_signs.csv** - Clinical measurements
+8. **physical_examination_findings.csv** - Physical exam results
+9. **red_flags_and_warnings.csv** - Warning signs
+10. **follow_up_plan_extracted.csv** - Follow-up instructions
+
+### Manifest File
+
+**manifest.json** - Extraction metadata and file listing
 
 ## CSV Format
 
-### Encoding
-- **Character Encoding**: UTF-8
-- **Line Endings**: Unix-style (LF)
-- **Delimiter**: Comma (,)
+All CSV files follow these conventions:
 
-### Data Representation
+- **Encoding**: UTF-8
+- **Delimiter**: Comma (`,`)
+- **Quote Character**: Double quote (`"`)
+- **Escape Character**: Backslash (`\`)
 - **NULL Values**: Empty strings
-- **JSONB Fields**: Serialized as JSON strings
-- **Timestamps**: ISO 8601 format (e.g., `2025-11-16T10:30:00Z`)
-- **UUIDs**: Standard UUID format (e.g., `550e8400-e29b-41d4-a716-446655440000`)
-- **Special Characters**: Properly escaped with quotes
+- **Headers**: First row contains column names matching database schema
 
-## Manifest File
+## Table Schemas
+
+### consultation_sessions.csv
+
+Session metadata and full transcript.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| consultation_session_id | UUID | Primary key |
+| patient_id | UUID | Foreign key to patient |
+| doctor_id | UUID | Foreign key to doctor |
+| session_start_datetime | TIMESTAMP | Session start time (ISO 8601) |
+| full_transcript | TEXT | Complete consultation transcript |
+| transcript_language | VARCHAR | Language code (e.g., "en-UK") |
+| nlp_processed_flag | BOOLEAN | Always true for extracted data |
+| created_at | TIMESTAMP | Record creation time (ISO 8601) |
+
+**Example**:
+```csv
+consultation_session_id,patient_id,doctor_id,session_start_datetime,full_transcript,transcript_language,nlp_processed_flag,created_at
+123e4567-e89b-12d3-a456-426614174000,987fcdeb-51a2-43f7-8c9d-123456789abc,456e7890-f12b-34c5-d678-901234567def,2024-11-16T10:30:00Z,"# GP Consultation...",en-UK,true,2024-11-16T10:30:00Z
+```
+
+### consultations.csv
+
+Structured consultation record.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| consultation_id | UUID | Primary key |
+| consultation_session_id | UUID | Foreign key to session |
+| patient_id | UUID | Foreign key to patient |
+| doctor_id | UUID | Foreign key to doctor |
+| consultation_datetime | TIMESTAMP | Consultation date/time |
+| consultation_type | VARCHAR | Type (e.g., "GP Consultation") |
+| chief_complaint | TEXT | Main complaint |
+| history_of_present_illness | TEXT | History details |
+| created_at | TIMESTAMP | Record creation time |
+
+### symptoms.csv
+
+Patient-reported symptoms.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| symptom_id | UUID | Primary key |
+| consultation_session_id | UUID | Foreign key to session |
+| patient_id | UUID | Foreign key to patient |
+| symptom_name | VARCHAR | Symptom name |
+| symptom_code | VARCHAR | SNOMED CT code (if available) |
+| severity | VARCHAR | Severity level (mild/moderate/severe/critical) |
+| duration_days | INTEGER | Duration in days |
+| onset_date | DATE | Onset date (ISO 8601) |
+| temporal_pattern | VARCHAR | Pattern description |
+| confidence_score | FLOAT | Extraction confidence (0.0-1.0) |
+| clinical_modifiers | JSONB | Additional modifiers (JSON string) |
+| extracted_at | TIMESTAMP | Extraction timestamp |
+
+**Example**:
+```csv
+symptom_id,consultation_session_id,patient_id,symptom_name,symptom_code,severity,duration_days,onset_date,temporal_pattern,confidence_score,clinical_modifiers,extracted_at
+abc12345-...,123e4567-...,987fcdeb-...,lower back pain,,moderate,1,2024-11-15,sharp pain when moving,0.85,{},2024-11-16T10:30:00Z
+```
+
+### medications.csv
+
+Prescribed medications.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| prescription_id | UUID | Primary key |
+| consultation_session_id | UUID | Foreign key to session |
+| patient_id | UUID | Foreign key to patient |
+| doctor_id | UUID | Foreign key to doctor |
+| medication_name | VARCHAR | Medication name |
+| dosage_value | INTEGER | Dosage amount |
+| dosage_unit | VARCHAR | Dosage unit (mg, ml, etc.) |
+| frequency | VARCHAR | Frequency (daily, twice daily, etc.) |
+| duration_value | INTEGER | Duration amount |
+| duration_unit | VARCHAR | Duration unit (days, weeks, etc.) |
+| route_of_administration | VARCHAR | Route (oral, IV, etc.) |
+| indication | VARCHAR | Reason for prescription |
+| prescribed_at | TIMESTAMP | Prescription timestamp |
+
+**Example**:
+```csv
+prescription_id,consultation_session_id,patient_id,doctor_id,medication_name,dosage_value,dosage_unit,frequency,duration_value,duration_unit,route_of_administration,indication,prescribed_at
+def45678-...,123e4567-...,987fcdeb-...,456e7890-...,Ibuprofen,400,mg,as needed,7,days,oral,pain relief,2024-11-16T10:30:00Z
+```
+
+### diagnoses.csv
+
+Final diagnoses.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| diagnosis_id | UUID | Primary key |
+| consultation_session_id | UUID | Foreign key to session |
+| patient_id | UUID | Foreign key to patient |
+| doctor_id | UUID | Foreign key to doctor |
+| diagnosis_name | VARCHAR | Diagnosis name |
+| diagnosis_code | VARCHAR | ICD-10 code (if available) |
+| diagnostic_certainty | VARCHAR | Certainty level (confirmed/probable/suspected/ruled_out) |
+| clinical_notes | TEXT | Additional notes |
+| diagnosed_at | TIMESTAMP | Diagnosis timestamp |
+
+### vital_signs.csv
+
+Clinical measurements.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| vital_sign_id | UUID | Primary key |
+| consultation_session_id | UUID | Foreign key to session |
+| patient_id | UUID | Foreign key to patient |
+| temperature | FLOAT | Temperature in Celsius |
+| blood_pressure | VARCHAR | Blood pressure (e.g., "120/80") |
+| heart_rate | INTEGER | Heart rate in bpm |
+| oxygen_saturation | FLOAT | O2 saturation percentage |
+| respiratory_rate | INTEGER | Respiratory rate per minute |
+| measured_at | TIMESTAMP | Measurement timestamp |
+
+### physical_examination_findings.csv
+
+Physical exam results.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| exam_finding_id | UUID | Primary key |
+| consultation_session_id | UUID | Foreign key to session |
+| patient_id | UUID | Foreign key to patient |
+| examination_type | VARCHAR | Type of examination |
+| anatomical_site | VARCHAR | Body part examined |
+| findings | TEXT | Examination findings |
+| severity | VARCHAR | Severity level |
+| examined_at | TIMESTAMP | Examination timestamp |
+
+### red_flags_and_warnings.csv
+
+Warning signs.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| red_flag_id | UUID | Primary key |
+| consultation_session_id | UUID | Foreign key to session |
+| patient_id | UUID | Foreign key to patient |
+| warning_description | TEXT | Warning description |
+| warning_type | VARCHAR | Type of warning |
+| severity | VARCHAR | Severity level |
+| identified_at | TIMESTAMP | Identification timestamp |
+
+### follow_up_plan_extracted.csv
+
+Follow-up instructions.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| follow_up_id | UUID | Primary key |
+| consultation_session_id | UUID | Foreign key to session |
+| patient_id | UUID | Foreign key to patient |
+| follow_up_type | VARCHAR | Type of follow-up |
+| timing | VARCHAR | When to follow up |
+| condition | TEXT | Conditions for follow-up |
+| action | TEXT | Action to take |
+| priority | VARCHAR | Priority level |
+| planned_at | TIMESTAMP | Planning timestamp |
+
+## Manifest File Format
 
 The `manifest.json` file contains metadata about the extraction:
 
 ```json
 {
-  "extraction_timestamp": "2025-11-16T10:30:00Z",
-  "consultation_session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "extraction_timestamp": "2024-11-16T10:30:00Z",
+  "consultation_session_id": "123e4567-e89b-12d3-a456-426614174000",
   "files": [
     {
       "table": "CONSULTATION_SESSIONS",
@@ -65,176 +226,194 @@ The `manifest.json` file contains metadata about the extraction:
 }
 ```
 
-### Manifest Fields
+## JSONB Fields
 
-- `extraction_timestamp`: When the extraction was performed (UTC)
-- `consultation_session_id`: UUID of the consultation session
-- `files`: Array of generated files with table name, filename, and row count
-- `total_entities_extracted`: Total number of clinical entities extracted
-- `processing_time_seconds`: Time taken to process the consultation
+Some fields contain JSON data serialized as strings:
 
-## Database Ingestion Guide
+### clinical_modifiers (in symptoms.csv)
 
-### Import Order
+```json
+{
+  "location": "lower back",
+  "radiation": "down left leg",
+  "aggravating_factors": ["bending", "lifting"],
+  "relieving_factors": ["rest"]
+}
+```
 
-Import CSV files in this order to satisfy foreign key constraints:
+In CSV, this appears as:
+```csv
+"{""location"": ""lower back"", ""radiation"": ""down left leg""}"
+```
 
-1. **Lookup Tables** (no dependencies):
-   - `severity_levels.csv`
-   - `diagnostic_certainty.csv`
-
-2. **Parent Table**:
-   - `consultation_sessions.csv`
-
-3. **Child Tables** (depend on consultation_sessions):
-   - `consultations.csv`
-   - `symptoms.csv`
-   - `medications.csv`
-   - `diagnoses.csv`
-   - `vital_signs.csv`
-   - `physical_examination_findings.csv`
-   - `associated_findings.csv`
-   - `review_of_systems.csv`
-   - `laboratory_results.csv`
-   - `clinical_assessment_extracted.csv`
-   - `red_flags_and_warnings.csv`
-   - `follow_up_plan_extracted.csv`
-   - `allergies.csv`
+## Database Ingestion
 
 ### PostgreSQL COPY Command
 
+Import CSV files into PostgreSQL:
+
 ```sql
--- Import lookup tables first
-COPY severity_levels FROM '/path/to/severity_levels.csv' 
+-- Import consultation sessions
+COPY consultation_sessions 
+FROM '/path/to/output/consultation_sessions.csv' 
 WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');
 
-COPY diagnostic_certainty FROM '/path/to/diagnostic_certainty.csv' 
+-- Import symptoms
+COPY symptoms 
+FROM '/path/to/output/symptoms.csv' 
 WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');
 
--- Import parent table
-COPY consultation_sessions FROM '/path/to/consultation_sessions.csv' 
+-- Import medications
+COPY medications 
+FROM '/path/to/output/medications.csv' 
 WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');
 
--- Import child tables
-COPY symptoms FROM '/path/to/symptoms.csv' 
-WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');
-
-COPY medications FROM '/path/to/medications.csv' 
-WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');
-
--- Repeat for all other tables...
+-- Continue for all tables...
 ```
 
-### Batch Import Script
+### Import Order
 
-```bash
-#!/bin/bash
-# import_csvs.sh
+Import tables in this order to satisfy foreign key constraints:
 
-DB_NAME="gp_consultations"
-CSV_DIR="/path/to/output"
+1. `consultation_sessions.csv` (parent table)
+2. `consultations.csv`
+3. All other tables (order doesn't matter)
 
-# Import lookup tables
-psql -d $DB_NAME -c "COPY severity_levels FROM '$CSV_DIR/severity_levels.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
-psql -d $DB_NAME -c "COPY diagnostic_certainty FROM '$CSV_DIR/diagnostic_certainty.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+### Handling Empty Tables
 
-# Import parent table
-psql -d $DB_NAME -c "COPY consultation_sessions FROM '$CSV_DIR/consultation_sessions.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+Empty CSV files contain only headers. PostgreSQL will import them without errors:
 
-# Import child tables
-for table in consultations symptoms medications diagnoses vital_signs physical_examination_findings; do
-  psql -d $DB_NAME -c "COPY $table FROM '$CSV_DIR/${table}.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
-done
-```
-
-## CSV Schema Examples
-
-### consultation_sessions.csv
 ```csv
-consultation_session_id,patient_id,doctor_id,session_start_datetime,full_transcript,transcript_language,nlp_processed_flag,created_at
-550e8400-e29b-41d4-a716-446655440000,660e8400-e29b-41d4-a716-446655440001,770e8400-e29b-41d4-a716-446655440002,2025-11-16T10:30:00Z,"Patient: I have a headache...",en-UK,true,2025-11-16T10:35:00Z
+symptom_id,consultation_session_id,patient_id,symptom_name,...
 ```
 
-### symptoms.csv
-```csv
-symptom_id,consultation_session_id,patient_id,symptom_name,symptom_code,severity,duration_days,onset_date,temporal_pattern,confidence_score,clinical_modifiers,extracted_at
-880e8400-e29b-41d4-a716-446655440003,550e8400-e29b-41d4-a716-446655440000,660e8400-e29b-41d4-a716-446655440001,headache,R51,severe,3,2025-11-13T00:00:00Z,worse in morning,0.95,"{""location"": ""frontal""}",2025-11-16T10:35:00Z
+Result: 0 rows imported.
+
+### JSONB Import
+
+JSONB fields are automatically converted from JSON strings:
+
+```sql
+-- The clinical_modifiers column is defined as JSONB
+-- PostgreSQL automatically converts the JSON string
+SELECT clinical_modifiers->>'location' FROM symptoms;
+-- Returns: "lower back"
 ```
 
-### medications.csv
-```csv
-prescription_id,consultation_session_id,patient_id,doctor_id,medication_name,dosage_value,dosage_unit,frequency,duration_value,duration_unit,route_of_administration,indication,prescribed_at
-990e8400-e29b-41d4-a716-446655440004,550e8400-e29b-41d4-a716-446655440000,660e8400-e29b-41d4-a716-446655440001,770e8400-e29b-41d4-a716-446655440002,Ibuprofen,400,mg,three times daily,5,days,oral,pain relief,2025-11-16T10:35:00Z
-```
-
-## Handling Special Cases
-
-### Empty Tables
-If no entities of a type are extracted, an empty CSV with headers only is generated:
-```csv
-symptom_id,consultation_session_id,patient_id,symptom_name,symptom_code,severity,duration_days,onset_date,temporal_pattern,confidence_score,clinical_modifiers,extracted_at
-```
-
-### JSONB Fields
-JSONB fields are exported as JSON strings and automatically converted by PostgreSQL:
-```csv
-clinical_modifiers
-"{""location"": ""frontal"", ""radiation"": ""none""}"
-```
-
-### NULL Values
-NULL values are represented as empty strings:
-```csv
-symptom_id,symptom_name,severity,duration_days
-880e8400...,headache,severe,
-```
-
-### Special Characters
-Special characters are properly escaped:
-```csv
-full_transcript
-"Patient said: ""I feel terrible"" and started crying."
-```
-
-## Validation
+## Data Validation
 
 Before importing, validate:
-1. All UUIDs are valid UUID4 format
-2. All timestamps are ISO 8601 format
-3. All foreign keys reference existing records
-4. All severity values exist in `SEVERITY_LEVELS`
-5. All certainty values exist in `DIAGNOSTIC_CERTAINTY`
+
+1. **File Existence**: All expected CSV files exist
+2. **File Size**: Files are not empty (except for tables with no data)
+3. **Header Match**: Headers match database schema
+4. **UUID Format**: All UUIDs are valid UUID4 format
+5. **Foreign Keys**: All foreign keys reference existing records
+6. **Data Types**: Values match expected data types
+
+### Validation Script Example
+
+```python
+import pandas as pd
+import uuid
+
+def validate_csv(filepath, required_columns):
+    df = pd.read_csv(filepath)
+    
+    # Check headers
+    assert set(required_columns).issubset(set(df.columns))
+    
+    # Check UUIDs
+    for col in df.columns:
+        if col.endswith('_id'):
+            for val in df[col].dropna():
+                uuid.UUID(val)  # Raises ValueError if invalid
+    
+    print(f"✓ {filepath} validated")
+
+validate_csv('output/symptoms.csv', [
+    'symptom_id', 'consultation_session_id', 'patient_id'
+])
+```
 
 ## Troubleshooting
 
-### Import Errors
+### Empty CSV Files
 
-**Foreign Key Violation**:
-- Ensure parent tables are imported before child tables
-- Verify `consultation_session_id` exists in `CONSULTATION_SESSIONS`
+If all CSV files are empty:
+- Check input file format
+- Verify LLM API credentials
+- Review extraction logs for errors
 
-**Invalid UUID Format**:
-- Check that UUIDs match pattern: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+### Missing Columns
 
-**Encoding Issues**:
-- Ensure database encoding is UTF-8
-- Verify CSV files are UTF-8 encoded
+If columns are missing:
+- Verify application version matches schema
+- Check for extraction errors in logs
+- Ensure all entity types were extracted
 
-**JSONB Parse Errors**:
-- Validate JSON strings are properly formatted
-- Check for unescaped quotes in JSON
+### Invalid UUIDs
 
-### Performance Tips
+If UUIDs are invalid:
+- Check UUID generation in data_mapper.py
+- Verify Python uuid module is working
+- Review logs for UUID generation errors
 
-1. **Disable Indexes**: Drop indexes before bulk import, recreate after
-2. **Batch Import**: Import multiple files in a single transaction
-3. **Use COPY**: Much faster than INSERT statements
-4. **Increase Work Memory**: `SET work_mem = '256MB';` for large imports
+### JSONB Parse Errors
+
+If JSONB fields fail to import:
+- Verify JSON is valid: `python -c "import json; json.loads(...)"`
+- Check for unescaped quotes
+- Review CSV escaping in csv_exporter.py
+
+## Performance
+
+### File Sizes
+
+Typical file sizes for a standard consultation:
+
+- consultation_sessions.csv: ~5-10 KB
+- symptoms.csv: ~1-2 KB
+- medications.csv: ~1-2 KB
+- diagnoses.csv: ~1 KB
+- Total: ~10-20 KB
+
+### Import Time
+
+PostgreSQL import times (approximate):
+
+- Small consultation (<50 entities): <1 second
+- Medium consultation (50-200 entities): 1-2 seconds
+- Large consultation (>200 entities): 2-5 seconds
 
 ## Best Practices
 
-1. **Backup First**: Always backup database before importing
-2. **Test Import**: Test with small dataset first
-3. **Validate Data**: Check row counts match manifest
-4. **Monitor Logs**: Watch PostgreSQL logs for errors
-5. **Verify Relationships**: Query foreign key relationships after import
+1. **Backup**: Always backup database before importing
+2. **Validation**: Validate CSV files before importing
+3. **Transactions**: Use transactions for atomic imports
+4. **Logging**: Log import results and errors
+5. **Monitoring**: Monitor import performance and errors
+
+## Example Import Script
+
+```bash
+#!/bin/bash
+
+# PostgreSQL import script
+DB_NAME="gp_consultations"
+OUTPUT_DIR="output"
+
+# Import in correct order
+psql $DB_NAME -c "COPY consultation_sessions FROM '$(pwd)/$OUTPUT_DIR/consultation_sessions.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+psql $DB_NAME -c "COPY consultations FROM '$(pwd)/$OUTPUT_DIR/consultations.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+psql $DB_NAME -c "COPY symptoms FROM '$(pwd)/$OUTPUT_DIR/symptoms.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+psql $DB_NAME -c "COPY medications FROM '$(pwd)/$OUTPUT_DIR/medications.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+psql $DB_NAME -c "COPY diagnoses FROM '$(pwd)/$OUTPUT_DIR/diagnoses.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+psql $DB_NAME -c "COPY clinical_assessment_extracted FROM '$(pwd)/$OUTPUT_DIR/clinical_assessment_extracted.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+psql $DB_NAME -c "COPY vital_signs FROM '$(pwd)/$OUTPUT_DIR/vital_signs.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+psql $DB_NAME -c "COPY physical_examination_findings FROM '$(pwd)/$OUTPUT_DIR/physical_examination_findings.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+psql $DB_NAME -c "COPY red_flags_and_warnings FROM '$(pwd)/$OUTPUT_DIR/red_flags_and_warnings.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+psql $DB_NAME -c "COPY follow_up_plan_extracted FROM '$(pwd)/$OUTPUT_DIR/follow_up_plan_extracted.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF-8');"
+
+echo "Import complete!"
+```

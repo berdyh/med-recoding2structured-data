@@ -1,176 +1,408 @@
-# Test Suite
+# Testing Documentation
 
-This directory contains unit tests and integration tests for the GP Consultation Data Extraction System.
+This directory contains the test suite for the GP Consultation Data Extraction System.
 
 ## Testing Strategy
 
-### Unit Tests
+The test suite includes:
 
-Unit tests focus on individual components in isolation, using mocks for external dependencies.
+1. **Unit Tests**: Test individual modules in isolation
+2. **Integration Tests**: Test end-to-end extraction pipeline
+3. **Mock Tests**: Mock external dependencies (LLM APIs, file I/O)
 
-**Test Files**:
-- `test_input_handler.py`: Tests for file reading and validation
-- `test_llm_provider.py`: Tests for provider selection and credential validation
-- `test_entity_extractor.py`: Tests for entity extraction with mocked LLM responses
-- `test_data_mapper.py`: Tests for schema mapping and UUID generation
-- `test_csv_exporter.py`: Tests for CSV generation and manifest creation
-- `test_validator.py`: Tests for validation rules
-- `test_test_data_generator.py`: Tests for test data generation
+## Test Structure
 
-**Mocking Strategy**:
-- Mock LangExtract API calls to avoid real API usage
-- Mock file I/O operations for predictable test behavior
-- Mock environment variables for configuration testing
-
-### Integration Tests
-
-Integration tests validate the complete pipeline from input to output.
-
-**Test File**: `test_integration.py`
-
-**Test Scenarios**:
-1. End-to-end extraction with `case_1.md` (lower back pain)
-2. End-to-end extraction with `case_2.md` (sore throat)
-3. Empty consultation handling (no entities extracted)
-4. Malformed input handling
-5. API failure and retry logic
-6. Test data generation with `--use-test-data` flag
+```
+tests/
+├── README.md                      # This file
+├── test_config_manager.py         # Configuration tests
+├── test_llm_provider.py           # LLM provider tests
+├── test_input_handler.py          # Input handling tests
+├── test_entity_extractor.py       # Entity extraction tests (optional)
+├── test_data_mapper.py            # Data mapping tests (optional)
+├── test_validator.py              # Validation tests
+├── test_csv_exporter.py           # CSV export tests (optional)
+├── test_test_data_generator.py    # Test data generation tests
+└── test_integration.py            # End-to-end integration tests (optional)
+```
 
 ## Running Tests
 
 ### Run All Tests
+
 ```bash
 pytest tests/
 ```
 
 ### Run Specific Test File
+
 ```bash
-pytest tests/test_input_handler.py
+pytest tests/test_config_manager.py
+```
+
+### Run Specific Test Function
+
+```bash
+pytest tests/test_config_manager.py::test_load_config
+```
+
+### Run with Coverage
+
+```bash
+pytest --cov=src tests/
 ```
 
 ### Run with Verbose Output
+
 ```bash
 pytest -v tests/
 ```
 
-### Run with Coverage Report
-```bash
-pytest --cov=src --cov-report=html tests/
-```
-
 ### Run Integration Tests Only
+
 ```bash
 pytest tests/test_integration.py
 ```
 
-### Run Unit Tests Only
+## Test Requirements
+
+### Dependencies
+
+Install test dependencies:
 ```bash
-pytest tests/ --ignore=tests/test_integration.py
+pip install pytest pytest-mock pytest-cov
+```
+
+### Test Data
+
+Test data files are located in:
+- `input/case_1.md`: Lower back pain consultation
+- `input/case_2.md`: Sore throat consultation
+
+### Environment Variables
+
+For integration tests, set:
+```bash
+export LANGEXTRACT_API_KEY="your-test-api-key"
+```
+
+Or use mock mode (no API calls):
+```bash
+export MOCK_LLM_CALLS=true
+```
+
+## Unit Tests
+
+### test_config_manager.py
+
+Tests configuration loading and validation:
+- Load from YAML file
+- Override with environment variables
+- Validate required fields
+- Handle missing configuration
+
+**Example:**
+```python
+def test_load_config():
+    config = ConfigManager('config/config.yaml')
+    assert config.get('llm.provider') in ['gemini', 'bedrock']
+```
+
+### test_llm_provider.py
+
+Tests LLM provider selection and credentials:
+- Provider selection based on environment
+- Credential validation
+- Error handling for missing credentials
+- Bedrock client initialization
+
+**Example:**
+```python
+def test_provider_selection(monkeypatch):
+    monkeypatch.setenv('LANGEXTRACT_API_KEY', 'test-key')
+    provider = LLMProviderManager(config)
+    assert provider.get_provider() == 'gemini'
+```
+
+### test_input_handler.py
+
+Tests input file reading and validation:
+- Read Markdown files
+- Handle file not found errors
+- Validate file format
+- Handle encoding errors
+
+**Example:**
+```python
+def test_read_transcript():
+    handler = InputHandler()
+    transcript = handler.read_transcript('input/case_1.md')
+    assert len(transcript) > 0
+    assert 'Patient' in transcript or 'GP' in transcript
+```
+
+### test_validator.py
+
+Tests data validation rules:
+- Severity validation
+- Certainty validation
+- Dosage validation
+- Date validation
+- NHS number validation
+
+**Example:**
+```python
+def test_validate_severity():
+    validator = Validator()
+    assert validator.validate_severity('moderate') == True
+    assert validator.validate_severity('invalid') == False
+```
+
+### test_test_data_generator.py
+
+Tests test data generation:
+- Patient data generation
+- Doctor data generation
+- NHS number generation and validation
+- UUID consistency
+
+**Example:**
+```python
+def test_generate_patient():
+    generator = TestDataGenerator()
+    patient = generator.generate_patient()
+    assert 'patient_id' in patient
+    assert 'nhs_number' in patient
+    assert len(patient['nhs_number']) == 10
+```
+
+## Integration Tests (Optional)
+
+### test_integration.py
+
+Tests end-to-end extraction pipeline:
+- Extract from case_1.md
+- Extract from case_2.md
+- Verify CSV outputs
+- Verify manifest file
+- Test with --use-test-data flag
+
+**Example:**
+```python
+def test_end_to_end_extraction():
+    # Run extraction
+    result = subprocess.run([
+        'python', '-m', 'src.main',
+        '--input', 'input/case_1.md',
+        '--use-test-data',
+        '--output-dir', 'test_output'
+    ], capture_output=True)
+    
+    assert result.returncode == 0
+    assert os.path.exists('test_output/symptoms.csv')
+    assert os.path.exists('test_output/manifest.json')
+```
+
+## Mocking
+
+### Mock LangExtract API Calls
+
+```python
+from unittest.mock import Mock, patch
+
+@patch('langextract.extract')
+def test_extract_symptoms(mock_extract):
+    # Mock LangExtract response
+    mock_result = Mock()
+    mock_result.extractions = [
+        Mock(extraction_class='symptom_name', extraction_text='headache', attributes={})
+    ]
+    mock_extract.return_value = mock_result
+    
+    # Test extraction
+    extractor = ClinicalEntityExtractor(llm_provider)
+    symptoms = extractor.extract_symptoms("Patient has headache")
+    
+    assert len(symptoms) > 0
+    assert symptoms[0]['class'] == 'symptom_name'
+```
+
+### Mock File I/O
+
+```python
+from unittest.mock import mock_open, patch
+
+@patch('builtins.open', mock_open(read_data='# Test Consultation\n\n**Patient**: Test'))
+def test_read_transcript():
+    handler = InputHandler()
+    transcript = handler.read_transcript('test.md')
+    assert 'Test Consultation' in transcript
+```
+
+## Test Coverage
+
+Target coverage: >80% for core modules
+
+Check coverage:
+```bash
+pytest --cov=src --cov-report=html tests/
+open htmlcov/index.html
 ```
 
 ## Test Data Requirements
 
-### Sample Consultation Files
+### Minimal Test Consultation
 
-Integration tests use consultation files from `consulation_recording_simulation/`:
-- `case_1.md`: Lower back pain (mechanical strain)
-- `case_2.md`: Sore throat (bacterial tonsillitis)
-- `case_3.md`: Additional test case
-- `case_4.md`: Additional test case
+```markdown
+# GP Consultation
 
-### Mock Data
+**Patient**: I have a headache.
 
-Unit tests use mock data defined in test files:
-- Mock LLM responses with sample entity extractions
-- Mock configuration dictionaries
-- Mock file content strings
+**GP**: How long have you had this headache?
 
-## Test Fixtures
-
-Common fixtures are defined in `conftest.py`:
-```python
-@pytest.fixture
-def sample_transcript():
-    """Sample consultation transcript for testing"""
-    return "Patient: I have a headache..."
-
-@pytest.fixture
-def mock_llm_provider():
-    """Mock LLM provider manager"""
-    return Mock(spec=LLMProviderManager)
+**Patient**: Since yesterday.
 ```
 
-## Writing New Tests
+### Complete Test Consultation
 
-### Unit Test Template
-```python
-import pytest
-from src.module_name import ClassName
-
-def test_method_name():
-    """Test description"""
-    # Arrange
-    instance = ClassName()
-    
-    # Act
-    result = instance.method()
-    
-    # Assert
-    assert result == expected_value
-```
-
-### Integration Test Template
-```python
-import pytest
-from src.main import main
-
-def test_end_to_end_extraction(tmp_path):
-    """Test complete extraction pipeline"""
-    # Arrange
-    input_file = "consulation_recording_simulation/case_1.md"
-    output_dir = tmp_path / "output"
-    
-    # Act
-    exit_code = main(["--input", input_file, "--output", str(output_dir)])
-    
-    # Assert
-    assert exit_code == 0
-    assert (output_dir / "symptoms.csv").exists()
-```
+Use provided case files:
+- `input/case_1.md`: Comprehensive lower back pain case
+- `input/case_2.md`: Comprehensive sore throat case
 
 ## Continuous Integration
 
-Tests should be run automatically on:
-- Every commit
-- Every pull request
-- Before deployment
+### GitHub Actions Example
 
-## Test Coverage Goals
+```yaml
+name: Tests
 
-- **Unit Tests**: >80% code coverage
-- **Integration Tests**: Cover all major user workflows
-- **Critical Paths**: 100% coverage for data mapping and validation
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ --cov=src
+```
+
+## Debugging Tests
+
+### Run with Debug Output
+
+```bash
+pytest -vv -s tests/test_config_manager.py
+```
+
+### Run with PDB on Failure
+
+```bash
+pytest --pdb tests/
+```
+
+### Run Specific Test with Print Statements
+
+```bash
+pytest -s tests/test_input_handler.py::test_read_transcript
+```
+
+## Test Best Practices
+
+1. **Isolation**: Each test should be independent
+2. **Mocking**: Mock external dependencies (APIs, file I/O)
+3. **Assertions**: Use clear, specific assertions
+4. **Cleanup**: Clean up test files and resources
+5. **Documentation**: Document test purpose and expected behavior
+
+## Common Test Patterns
+
+### Setup and Teardown
+
+```python
+import pytest
+
+@pytest.fixture
+def temp_output_dir(tmp_path):
+    """Create temporary output directory."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    yield output_dir
+    # Cleanup happens automatically
+
+def test_csv_export(temp_output_dir):
+    exporter = CSVExporter(str(temp_output_dir))
+    # Test export
+```
+
+### Parametrized Tests
+
+```python
+@pytest.mark.parametrize("severity,expected", [
+    ("mild", True),
+    ("moderate", True),
+    ("severe", True),
+    ("invalid", False),
+])
+def test_validate_severity(severity, expected):
+    validator = Validator()
+    assert validator.validate_severity(severity) == expected
+```
+
+### Exception Testing
+
+```python
+def test_missing_file():
+    handler = InputHandler()
+    with pytest.raises(FileNotFoundError):
+        handler.read_transcript('nonexistent.md')
+```
+
+## Performance Testing
+
+### Test Processing Time
+
+```python
+import time
+
+def test_extraction_performance():
+    start = time.time()
+    # Run extraction
+    duration = time.time() - start
+    assert duration < 60  # Should complete in <60 seconds
+```
+
+## Test Maintenance
+
+- Update tests when adding new features
+- Remove obsolete tests
+- Keep test data up to date
+- Review test coverage regularly
+- Fix flaky tests immediately
 
 ## Troubleshooting
 
-### Tests Fail Due to Missing API Keys
-- Unit tests should not require real API keys (use mocks)
-- Integration tests may require API keys in environment variables
+### Tests Fail with API Errors
 
-### Tests Fail Due to Missing Files
-- Ensure consultation files exist in `consulation_recording_simulation/`
-- Check that test data files are not in `.gitignore`
+- Check API key is set: `echo $LANGEXTRACT_API_KEY`
+- Use mock mode: `export MOCK_LLM_CALLS=true`
+- Check network connectivity
 
-### Slow Test Execution
-- Use mocks for external API calls
-- Consider marking slow tests with `@pytest.mark.slow`
-- Run fast tests during development, full suite in CI
+### Tests Fail with Import Errors
 
-## Best Practices
+- Verify dependencies: `pip install -r requirements.txt`
+- Check Python version: `python --version` (should be 3.12+)
 
-1. **Test Isolation**: Each test should be independent
-2. **Clear Assertions**: Use descriptive assertion messages
-3. **Mock External Dependencies**: Don't rely on external services
-4. **Test Edge Cases**: Include tests for error conditions
-5. **Keep Tests Fast**: Unit tests should run in milliseconds
-6. **Descriptive Names**: Test names should describe what they test
+### Tests Fail with File Not Found
+
+- Verify test data exists: `ls input/case_*.md`
+- Check working directory: `pwd`
+
+## Additional Resources
+
+- [pytest documentation](https://docs.pytest.org/)
+- [pytest-mock documentation](https://pytest-mock.readthedocs.io/)
+- [pytest-cov documentation](https://pytest-cov.readthedocs.io/)

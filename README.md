@@ -4,157 +4,312 @@ A Python-based system that extracts structured clinical data from unstructured G
 
 ## Features
 
-- **Multi-LLM Support**: Works with Google Gemini 2.5 Pro or Claude Sonnet 4.5 via AWS Bedrock
-- **Clinical Entity Extraction**: Extracts symptoms, medications, diagnoses, vital signs, physical exam findings, red flags, and follow-up plans
-- **Database Schema Mapping**: Maps extracted data to 14 PostgreSQL tables with proper foreign key relationships
-- **CSV Export**: Generates one CSV file per database table with manifest file
-- **Test Data Generation**: One-click generation of realistic patient and doctor data
-- **Docker Support**: Fully containerized for consistent deployment
-- **Comprehensive Logging**: Structured JSON logging with detailed error handling
-
-## Project Structure
-
-```
-gp-consultation-extractor/
-├── src/                    # Source code modules
-├── tests/                  # Test suite
-├── config/                 # Configuration files
-├── input/                  # Input consultation files
-├── output/                 # Generated CSV files
-├── docs/                   # Documentation
-├── requirements.txt        # Python dependencies
-├── Dockerfile             # Docker configuration
-├── docker-compose.yml     # Docker Compose configuration
-└── README.md              # This file
-```
+- **Multi-LLM Support**: Works with Google Gemini 2.5 Pro or AWS Bedrock Claude Sonnet 4.5
+- **Comprehensive Entity Extraction**: Extracts symptoms, medications, diagnoses, vital signs, physical exam findings, red flags, and follow-up plans
+- **Database Schema Mapping**: Maps extracted entities to 14 PostgreSQL tables with proper foreign key relationships
+- **CSV Export**: Generates CSV files ready for database ingestion with proper encoding and JSONB serialization
+- **Test Data Generation**: One-click generation of realistic UK patient and doctor data
+- **Docker Support**: Containerized deployment for consistent execution
+- **Robust Error Handling**: Comprehensive error handling with retry logic and detailed logging
+- **Validation**: Data validation against business rules with non-blocking warnings
 
 ## Installation
 
+### Prerequisites
+
+- Python 3.12 or higher
+- Docker (optional, for containerized deployment)
+- LangExtract API key (for Gemini) OR AWS credentials (for Bedrock)
+
 ### Local Installation
 
-1. Clone the repository
-2. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd gp-consultation-extractor
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Set up environment variables:
+```bash
+# For Gemini
+export LANGEXTRACT_API_KEY="your-api-key-here"
+
+# OR for AWS Bedrock
+export AWS_BEDROCK_ENABLED=true
+export AWS_REGION=us-east-1
+# Ensure AWS credentials are configured (~/.aws/credentials)
+```
 
 ### Docker Installation
 
 1. Build the Docker image:
-   ```bash
-   docker-compose build
-   ```
+```bash
+docker build -t gp-extractor .
+```
+
+2. Or use Docker Compose:
+```bash
+docker-compose build
+```
+
+## Usage
+
+### Command-Line Usage
+
+#### With Test Data (Recommended for Testing)
+
+```bash
+python -m src.main --input input/case_1.md --use-test-data
+```
+
+This automatically generates realistic patient and doctor data.
+
+#### With Existing Patient/Doctor IDs
+
+```bash
+python -m src.main \
+  --input input/case_1.md \
+  --patient-id "123e4567-e89b-12d3-a456-426614174000" \
+  --doctor-id "987fcdeb-51a2-43f7-8c9d-123456789abc"
+```
+
+#### Custom Output Directory
+
+```bash
+python -m src.main \
+  --input input/case_1.md \
+  --use-test-data \
+  --output-dir /path/to/output
+```
+
+### Docker Usage
+
+#### Using Docker Run
+
+```bash
+docker run -v $(pwd)/input:/input -v $(pwd)/output:/output \
+  -e LANGEXTRACT_API_KEY=your-key \
+  gp-extractor --input /input/case_1.md --use-test-data
+```
+
+#### Using Docker Compose
+
+1. Edit `docker-compose.yml` to set your API key
+2. Place your consultation file in `input/consultation.md`
+3. Run:
+
+```bash
+docker-compose up
+```
+
+The CSV files will be generated in the `output/` directory.
+
+### AWS Bedrock Usage
+
+```bash
+docker run -v $(pwd)/input:/input -v $(pwd)/output:/output \
+  -v ~/.aws:/root/.aws:ro \
+  -e AWS_BEDROCK_ENABLED=true \
+  -e AWS_REGION=us-east-1 \
+  gp-extractor --input /input/case_1.md --use-test-data
+```
 
 ## Configuration
 
 ### Environment Variables
 
-#### For Gemini API:
-```bash
-export LANGEXTRACT_API_KEY="your-gemini-api-key"
-```
-
-#### For AWS Bedrock:
-```bash
-export AWS_BEDROCK_ENABLED=true
-export AWS_REGION="us-east-1"
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-```
-
-#### Optional Configuration:
-```bash
-export MODEL_ID="anthropic.claude-sonnet-4-5-20250929-v1:0"  # Override default model
-export EXTRACTION_CONFIDENCE_THRESHOLD=0.7  # Filter low-confidence extractions
-export LOG_LEVEL=INFO  # Logging level
-```
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `LANGEXTRACT_API_KEY` | API key for Gemini | - | Yes (if using Gemini) |
+| `AWS_BEDROCK_ENABLED` | Enable AWS Bedrock | `false` | No |
+| `AWS_REGION` | AWS region for Bedrock | `us-east-1` | No |
+| `MODEL_ID` | Bedrock model ID | `anthropic.claude-sonnet-4-5-20250929-v1:0` | No |
+| `EXTRACTION_CONFIDENCE_THRESHOLD` | Minimum confidence for extractions | `0.7` | No |
+| `LOG_LEVEL` | Logging verbosity | `INFO` | No |
+| `OUTPUT_DIR` | Output directory | `output` | No |
 
 ### Configuration File
 
-Edit `config/config.yaml` to customize extraction parameters, output settings, and logging configuration.
+Edit `config/config.yaml` to customize:
 
-## Usage
+- LLM provider settings
+- Extraction parameters
+- Output settings
+- Logging configuration
 
-### Local Execution
+See `config/README.md` for detailed configuration options.
 
-#### With test data generation:
-```bash
-python -m src.main --input input/consultation.md --use-test-data
+## Input Format
+
+Consultation transcripts should be in Markdown format with patient-GP dialogue. Example:
+
+```markdown
+# GP Consultation - Lower Back Pain
+
+**Patient**: I've had this pain in my lower back since yesterday morning...
+
+**GP**: Can you describe the pain for me?
+
+**Patient**: It's a sharp pain when I move or bend...
 ```
 
-#### With specific patient/doctor IDs:
-```bash
-python -m src.main --input input/consultation.md
-```
-
-### Docker Execution
-
-#### With test data generation:
-```bash
-docker-compose up
-```
-
-#### With custom input file:
-```bash
-docker-compose run extractor --input /input/your-consultation.md --use-test-data
-```
+See `input/README.md` for detailed format specification.
 
 ## Output
 
 The system generates:
-- One CSV file per database table in the `output/` directory
-- A `manifest.json` file listing all generated files with metadata
-- Structured logs with extraction statistics
 
-### Output Files
+1. **CSV Files**: One file per database table
+   - `consultation_sessions.csv`
+   - `consultations.csv`
+   - `symptoms.csv`
+   - `medications.csv`
+   - `diagnoses.csv`
+   - `clinical_assessment_extracted.csv`
+   - `vital_signs.csv`
+   - `physical_examination_findings.csv`
+   - `red_flags_and_warnings.csv`
+   - `follow_up_plan_extracted.csv`
 
-- `consultation_sessions.csv`
-- `consultations.csv`
-- `symptoms.csv`
-- `medications.csv`
-- `diagnoses.csv`
-- `vital_signs.csv`
-- `physical_examination_findings.csv`
-- `red_flags_and_warnings.csv`
-- `follow_up_plan_extracted.csv`
-- And more (see `output/README.md` for complete list)
+2. **Manifest File**: `manifest.json` with extraction metadata
+
+See `output/README.md` for detailed output format and database ingestion guide.
+
+## Database Schema
+
+The system maps to 14 PostgreSQL tables:
+
+- **Core Tables**: `CONSULTATION_SESSIONS`, `CONSULTATIONS`
+- **Clinical Entities**: `SYMPTOMS`, `MEDICATIONS`, `DIAGNOSES`
+- **Examinations**: `VITAL_SIGNS`, `PHYSICAL_EXAMINATION_FINDINGS`
+- **Assessments**: `CLINICAL_ASSESSMENT_EXTRACTED`, `RED_FLAGS_AND_WARNINGS`, `FOLLOW_UP_PLAN_EXTRACTED`
+- **Lookup Tables**: `SEVERITY_LEVELS`, `DIAGNOSTIC_CERTAINTY`
+
+See `docs/architecture.md` for complete database schema with ER diagram.
+
+## Exit Codes
+
+| Code | Description |
+|------|-------------|
+| 0 | Success |
+| 1 | Input error (file not found, invalid format) |
+| 2 | Configuration error (missing credentials) |
+| 3 | Extraction error (API failure) |
+| 4 | Validation error (invalid data) |
+| 5 | Export error (file write failure) |
+
+## Examples
+
+### Example 1: Extract from Case 1 (Lower Back Pain)
+
+```bash
+python -m src.main --input input/case_1.md --use-test-data
+```
+
+Output:
+```
+2024-11-16 10:30:00 - INFO - Starting GP Consultation Data Extraction System
+2024-11-16 10:30:01 - INFO - Using LLM provider: gemini
+2024-11-16 10:30:02 - INFO - Extracted 42 entities
+2024-11-16 10:30:03 - INFO - Exported 10 CSV files to output
+2024-11-16 10:30:03 - INFO - Processing complete in 3.45 seconds
+```
+
+### Example 2: Extract from Case 2 (Sore Throat)
+
+```bash
+python -m src.main --input input/case_2.md --use-test-data
+```
 
 ## Testing
 
-Run the test suite:
+Run unit tests:
 ```bash
 pytest tests/
 ```
 
-Run with coverage:
+Run integration tests:
 ```bash
-pytest --cov=src tests/
+pytest tests/test_integration.py
 ```
 
-## Documentation
+See `tests/README.md` for detailed testing guide.
 
-- **src/README.md**: Module documentation and component responsibilities
-- **tests/README.md**: Testing strategy and how to run tests
-- **config/README.md**: Configuration options and environment variables
-- **input/README.md**: Input file format specification
-- **output/README.md**: Output CSV format and database ingestion guide
-- **docs/architecture.md**: Database schema visualization with Mermaid diagrams
+## Architecture
 
-## Requirements
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Docker Container                         │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │              Main Application                         │  │
+│  │  Input → LLM Provider → Entity Extractor →           │  │
+│  │  Data Mapper → Validator → CSV Exporter              │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+         ↑ Input                              ↓ Output
+    [Markdown Files]                    [CSV Files + Manifest]
+```
 
-- Python 3.12+
-- LangExtract API key (Gemini) or AWS Bedrock credentials
-- See `requirements.txt` for complete dependency list
+## Performance
+
+- Typical consultation (500-1000 words): <60 seconds
+- Long consultation (2000+ words): <120 seconds
+- Memory usage: <512MB
+
+## Troubleshooting
+
+### API Key Issues
+
+```bash
+# Verify API key is set
+echo $LANGEXTRACT_API_KEY
+
+# Test API connection
+python -c "import os; print('API key set' if os.getenv('LANGEXTRACT_API_KEY') else 'API key missing')"
+```
+
+### Docker Issues
+
+```bash
+# Check Docker is running
+docker ps
+
+# View container logs
+docker-compose logs
+
+# Rebuild image
+docker-compose build --no-cache
+```
+
+### Extraction Errors
+
+- Check input file format matches specification
+- Verify API credentials are valid
+- Check network connectivity
+- Review logs for detailed error messages
+
+## Contributing
+
+See `CONTRIBUTING.md` for development guidelines.
 
 ## License
 
-[Add your license here]
+See `LICENSE` file for details.
 
 ## Support
 
-For issues and questions, please refer to the documentation in the `docs/` directory.
+For issues and questions:
+- Check `docs/` directory for detailed documentation
+- Review error logs in console output
+- Verify configuration in `config/config.yaml`
+
+## Acknowledgments
+
+- Built with [LangExtract](https://github.com/AnswerDotAI/langextract) for clinical entity extraction
+- Uses Google Gemini 2.5 Pro or AWS Bedrock Claude Sonnet 4.5 for NLP
+- Database schema designed for PostgreSQL 14+
