@@ -246,7 +246,7 @@ Findings are consistent with acute mechanical lower-back strain, likely from lif
         # Verify manifest
         assert os.path.exists(manifest_path)
         
-        with open(manifest_path, 'r') as f:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
             manifest = json.load(f)
         
         assert manifest['consultation_session_id'] == str(consultation_session_id)
@@ -319,7 +319,7 @@ Findings are consistent with acute mechanical lower-back strain, likely from lif
         """Test system handles malformed input gracefully."""
         # Create malformed consultation
         malformed_file = os.path.join(temp_dirs['input'], 'malformed.md')
-        with open(malformed_file, 'w') as f:
+        with open(malformed_file, 'w', encoding='utf-8') as f:
             f.write("This is not a proper consultation transcript.")
         
         handler = InputHandler()
@@ -432,9 +432,9 @@ class TestRealConsultationCases:
         if not os.path.exists(case_files['case_1']):
             pytest.skip("Case 1 file not found")
         
-        # Read case file
+        # Read case file (read but use mock extraction for testing)
         handler = InputHandler()
-        transcript = handler.read_transcript(case_files['case_1'])
+        _transcript = handler.read_transcript(case_files['case_1'])
         
         # Generate test data
         generator = TestDataGenerator()
@@ -496,7 +496,7 @@ class TestRealConsultationCases:
         )
         assert os.path.exists(manifest_path)
         
-        with open(manifest_path, 'r') as f:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
             manifest = json.load(f)
         
         assert manifest['consultation_session_id'] == str(consultation_session_id)
@@ -509,9 +509,9 @@ class TestRealConsultationCases:
         if not os.path.exists(case_files['case_2']):
             pytest.skip("Case 2 file not found")
         
-        # Read case file
+        # Read case file (read but use mock extraction for testing)
         handler = InputHandler()
-        transcript = handler.read_transcript(case_files['case_2'])
+        _transcript = handler.read_transcript(case_files['case_2'])
         
         # Generate test data
         generator = TestDataGenerator()
@@ -547,7 +547,7 @@ class TestRealConsultationCases:
         }
         
         exporter = CSVExporter(temp_dirs['output'])
-        file_paths = exporter.export_all(mapped_data)
+        _file_paths = exporter.export_all(mapped_data)
         
         # Verify manifest
         manifest_path = exporter.create_manifest(
@@ -556,7 +556,7 @@ class TestRealConsultationCases:
             processing_time=8.2
         )
         
-        with open(manifest_path, 'r') as f:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
             manifest = json.load(f)
         
         assert manifest['consultation_session_id'] == str(consultation_session_id)

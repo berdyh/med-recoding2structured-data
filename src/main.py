@@ -102,7 +102,7 @@ def main():
         # Parse arguments
         args = parse_arguments()
         logger.info("Starting GP Consultation Data Extraction System")
-        logger.info(f"Input file: {args.input}")
+        logger.info('Input file: %s', args.input)
         
         # Initialize configuration
         logger.info("Loading configuration...")
@@ -111,8 +111,8 @@ def main():
             if not config.validate():
                 logger.error("Configuration validation failed")
                 return EXIT_CONFIG_ERROR
-        except Exception as e:
-            logger.error(f"Configuration error: {e}")
+        except (ValueError, IOError, OSError) as e:
+            logger.error('Configuration error: %s', e)
             return EXIT_CONFIG_ERROR
         
         # Initialize LLM provider
@@ -122,9 +122,9 @@ def main():
             if not llm_provider.validate_credentials():
                 logger.error("LLM provider credential validation failed")
                 return EXIT_CONFIG_ERROR
-            logger.info(f"Using LLM provider: {llm_provider.get_provider()}")
+            logger.info('Using LLM provider: %s', llm_provider.get_provider())
         except LLMProviderError as e:
-            logger.error(f"LLM provider error: {e}")
+            logger.error('LLM provider error: %s', e)
             return EXIT_CONFIG_ERROR
         
         # Read input file
@@ -137,9 +137,9 @@ def main():
                 logger.error("Input file format validation failed")
                 return EXIT_INPUT_ERROR
             
-            logger.info(f"Successfully read transcript ({len(transcript)} characters)")
-        except Exception as e:
-            logger.error(f"Input error: {e}")
+            logger.info('Successfully read transcript (%d characters)', len(transcript))
+        except (IOError, OSError, ValueError) as e:
+            logger.error('Input error: %s', e)
             return EXIT_INPUT_ERROR
         
         # Generate or load patient/doctor data
@@ -150,8 +150,8 @@ def main():
             doctor_data = test_generator.generate_doctor()
             patient_id = uuid.UUID(patient_data['patient_id'])
             doctor_id = uuid.UUID(doctor_data['doctor_id'])
-            logger.info(f"Generated test patient ID: {patient_id}")
-            logger.info(f"Generated test doctor ID: {doctor_id}")
+            logger.info('Generated test patient ID: %s', patient_id)
+            logger.info('Generated test doctor ID: %s', doctor_id)
         else:
             if not args.patient_id or not args.doctor_id:
                 logger.error("Patient ID and Doctor ID are required when not using test data")
@@ -161,12 +161,12 @@ def main():
                 patient_id = uuid.UUID(args.patient_id)
                 doctor_id = uuid.UUID(args.doctor_id)
             except ValueError as e:
-                logger.error(f"Invalid UUID format: {e}")
+                logger.error('Invalid UUID format: %s', e)
                 return EXIT_INPUT_ERROR
         
         # Generate consultation session ID
         consultation_session_id = uuid.uuid4()
-        logger.info(f"Consultation session ID: {consultation_session_id}")
+        logger.info('Consultation session ID: %s', consultation_session_id)
         
         # Extract entities
         logger.info("Extracting clinical entities...")
@@ -175,13 +175,13 @@ def main():
             extracted_entities = extractor.extract_all(transcript)
             
             total_entities = sum(len(entities) for entities in extracted_entities.values())
-            logger.info(f"Extracted {total_entities} entities")
+            logger.info('Extracted %d entities', total_entities)
             
             for entity_type, entities in extracted_entities.items():
-                logger.info(f"  - {entity_type}: {len(entities)} entities")
+                logger.info('  - %s: %d entities', entity_type, len(entities))
         
         except ExtractionError as e:
-            logger.error(f"Extraction error: {e}")
+            logger.error('Extraction error: %s', e)
             return EXIT_EXTRACTION_ERROR
         
         # Validate extracted data
@@ -191,14 +191,14 @@ def main():
             is_valid, validation_errors = validator.validate_all(extracted_entities)
             
             if validation_errors:
-                logger.warning(f"Found {len(validation_errors)} validation warnings:")
+                logger.warning('Found %d validation warnings:', len(validation_errors))
                 for error in validation_errors[:10]:  # Show first 10
-                    logger.warning(f"  - {error}")
+                    logger.warning('  - %s', error)
                 if len(validation_errors) > 10:
-                    logger.warning(f"  ... and {len(validation_errors) - 10} more")
+                    logger.warning('  ... and %d more', len(validation_errors) - 10)
         
-        except Exception as e:
-            logger.error(f"Validation error: {e}")
+        except (ValueError, AttributeError) as e:
+            logger.error('Validation error: %s', e)
             # Continue processing despite validation errors
         
         # Map entities to database schema
@@ -249,10 +249,10 @@ def main():
                 extracted_entities.get('follow_up', [])
             )
             
-            logger.info(f"Mapped {len(mapped_data)} tables")
+            logger.info('Mapped %d tables', len(mapped_data))
         
-        except Exception as e:
-            logger.error(f"Mapping error: {e}")
+        except (ValueError, AttributeError, IOError) as e:
+            logger.error('Mapping error: %s', e)
             return EXIT_EXTRACTION_ERROR
         
         # Export CSVs
@@ -269,17 +269,17 @@ def main():
                 processing_time
             )
             
-            logger.info(f"Exported {len(file_paths)} CSV files to {args.output_dir}")
-            logger.info(f"Manifest file: {manifest_path}")
+            logger.info('Exported %d CSV files to %s', len(file_paths), args.output_dir)
+            logger.info('Manifest file: %s', manifest_path)
         
-        except Exception as e:
-            logger.error(f"Export error: {e}")
+        except (IOError, OSError) as e:
+            logger.error('Export error: %s', e)
             return EXIT_EXPORT_ERROR
         
         # Success
         processing_time = time.time() - start_time
-        logger.info(f"Processing complete in {processing_time:.2f} seconds")
-        logger.info(f"Total entities extracted: {total_entities}")
+        logger.info('Processing complete in %.2f seconds', processing_time)
+        logger.info('Total entities extracted: %d', total_entities)
         
         return EXIT_SUCCESS
     
@@ -288,7 +288,7 @@ def main():
         return EXIT_EXTRACTION_ERROR
     
     except Exception as e:
-        logger.error(f"Unexpected error: {e}", exc_info=True)
+        logger.error('Unexpected error: %s', e, exc_info=True)
         return EXIT_EXTRACTION_ERROR
 
 

@@ -5,15 +5,15 @@ and provides a unified interface for credential validation and provider selectio
 """
 
 import os
+from typing import Dict, Optional
+
 import boto3
 import requests
-from typing import Dict, Optional
 from botocore.exceptions import ClientError, NoCredentialsError
 
 
 class LLMProviderError(Exception):
     """Raised when LLM provider configuration or connection fails."""
-    pass
 
 
 class LLMProviderManager:
@@ -182,7 +182,7 @@ class LLMProviderManager:
                 
                 return True
             except Exception as e:
-                raise LLMProviderError(f"Failed to validate custom Bedrock endpoint: {e}")
+                raise LLMProviderError(f"Failed to validate custom Bedrock endpoint: {e}") from e
         
         else:
             # Standard boto3 validation
@@ -209,19 +209,19 @@ class LLMProviderManager:
                 
                 return True
             
-            except NoCredentialsError:
+            except NoCredentialsError as e:
                 raise LLMProviderError(
                     "AWS credentials not found. Configure AWS credentials via "
                     "environment variables, ~/.aws/credentials, or IAM role."
-                )
+                ) from e
             except ClientError as e:
                 error_code = e.response.get('Error', {}).get('Code', 'Unknown')
                 error_message = e.response.get('Error', {}).get('Message', str(e))
                 raise LLMProviderError(
                     f"AWS Bedrock access failed ({error_code}): {error_message}"
-                )
-            except Exception as e:
-                raise LLMProviderError(f"Failed to validate Bedrock credentials: {str(e)}")
+                ) from e
+            except (ValueError, IOError) as e:
+                raise LLMProviderError(f"Failed to validate Bedrock credentials: {str(e)}") from e
     
     def get_bedrock_client(self):
         """Get boto3 Bedrock runtime client.
@@ -296,4 +296,4 @@ class LLMProviderManager:
             return response.json()
             
         except requests.exceptions.RequestException as e:
-            raise LLMProviderError(f"Custom endpoint request failed: {e}")
+            raise LLMProviderError(f"Custom endpoint request failed: {e}") from e
