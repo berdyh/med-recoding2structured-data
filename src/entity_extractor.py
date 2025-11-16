@@ -250,14 +250,18 @@ class ClinicalEntityExtractor:
     def _parse_extraction_result(self, result) -> List[Dict]:
         """Parse LangExtract result into list of dictionaries.
         
+        Handles both LangExtract result objects (with .extractions attribute) 
+        and dict responses from custom endpoints (with 'extractions' key).
+        
         Args:
-            result: LangExtract extraction result
+            result: LangExtract extraction result (object or dict)
             
         Returns:
             List of extracted entities as dictionaries
         """
         entities = []
         
+        # Handle LangExtract result object (has .extractions attribute)
         if hasattr(result, 'extractions'):
             for extraction in result.extractions:
                 entity = {
@@ -266,6 +270,34 @@ class ClinicalEntityExtractor:
                     'attributes': extraction.attributes if hasattr(extraction, 'attributes') else {}
                 }
                 entities.append(entity)
+        
+        # Handle dict response from custom endpoint (has 'extractions' key)
+        elif isinstance(result, dict) and 'extractions' in result:
+            for extraction in result['extractions']:
+                # Extraction can be a dict or an object
+                if isinstance(extraction, dict):
+                    entity = {
+                        'class': extraction.get('class') or extraction.get('extraction_class', ''),
+                        'text': extraction.get('text') or extraction.get('extraction_text', ''),
+                        'attributes': extraction.get('attributes', {})
+                    }
+                else:
+                    # Extraction is an object (fallback)
+                    entity = {
+                        'class': getattr(extraction, 'extraction_class', getattr(extraction, 'class', '')),
+                        'text': getattr(extraction, 'extraction_text', getattr(extraction, 'text', '')),
+                        'attributes': getattr(extraction, 'attributes', {}) if hasattr(extraction, 'attributes') else {}
+                    }
+                entities.append(entity)
+        
+        # Log warning if result format is unexpected
+        if not entities:
+            logger.warning(
+                'No extractions found in result. Result type: %s, Has extractions attr: %s, Is dict with extractions key: %s',
+                type(result).__name__,
+                hasattr(result, 'extractions') if not isinstance(result, dict) else False,
+                isinstance(result, dict) and 'extractions' in result
+            )
         
         return entities
     
