@@ -9,6 +9,7 @@ import json
 import pandas as pd
 import tempfile
 import shutil
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
@@ -18,7 +19,7 @@ sys.path.insert(0, 'src')
 from config_manager import ConfigManager
 from llm_provider import LLMProviderManager
 from input_handler import InputHandler
-from entity_extractor import ClinicalEntityExtractor
+from entity_extractor import ClinicalEntityExtractor, ExtractionError
 from data_mapper import DataMapper
 from csv_exporter import CSVExporter
 from validator import Validator
@@ -257,13 +258,12 @@ Findings are consistent with acute mechanical lower-back strain, likely from lif
     def test_validation_integration(self, mock_extraction_result):
         """Test validator works with extracted data."""
         validator = Validator()
-        
+
         # Validate all extracted data
-        is_valid, errors = validator.validate_all(mock_extraction_result)
-        
+        is_valid, _validation_errors = validator.validate_all(mock_extraction_result)
+
         # Should be valid (or have only warnings)
         assert is_valid is True
-        # Errors list may contain warnings but shouldn't fail
     
     def test_empty_consultation_handling(self, temp_dirs):
         """Test system handles consultation with no entities."""
@@ -367,9 +367,8 @@ Findings are consistent with acute mechanical lower-back strain, likely from lif
         # Timestamps should be close (within same second)
         symptom_time = symptoms_df.iloc[0]['extracted_at']
         medication_time = medications_df.iloc[0]['prescribed_at']
-        
+
         # Both should be valid ISO timestamps
-        from datetime import datetime
         datetime.fromisoformat(symptom_time.replace('Z', '+00:00'))
         datetime.fromisoformat(medication_time.replace('Z', '+00:00'))
 
@@ -431,19 +430,20 @@ class TestRealConsultationCases:
         """Test end-to-end extraction with case_1.md - verify CSV outputs and manifest."""
         if not os.path.exists(case_files['case_1']):
             pytest.skip("Case 1 file not found")
-        
+
         # Read case file (read but use mock extraction for testing)
         handler = InputHandler()
         _transcript = handler.read_transcript(case_files['case_1'])
-        
-        # Generate test data
+
+        # Generate test data and create mapper
         generator = TestDataGenerator()
         patient_data = generator.generate_patient()
         doctor_data = generator.generate_doctor()
         patient_id = uuid.UUID(patient_data['patient_id'])
         doctor_id = uuid.UUID(doctor_data['doctor_id'])
         consultation_session_id = uuid.uuid4()
-        
+        mapper = DataMapper(consultation_session_id, patient_id, doctor_id)
+
         # Create mock extraction result for case_1 (lower back pain)
         mock_extraction = {
             'symptoms': [
@@ -461,25 +461,22 @@ class TestRealConsultationCases:
             'red_flags': [],
             'follow_up': []
         }
-        
-        # Map to database schema
-        mapper = DataMapper(consultation_session_id, patient_id, doctor_id)
+
+        # Map to database schema and export
         mapped_data = {
             'symptoms': mapper.map_symptoms(mock_extraction['symptoms']),
             'medications': mapper.map_medications(mock_extraction['medications']),
             'diagnoses': mapper.map_diagnoses(mock_extraction['diagnoses'])[0],
         }
-        
-        # Export to CSV
         exporter = CSVExporter(temp_dirs['output'])
         file_paths = exporter.export_all(mapped_data)
-        
+
         # Verify CSV files were created
         assert len(file_paths) >= 3
         assert any('symptoms.csv' in fp for fp in file_paths)
         assert any('medications.csv' in fp for fp in file_paths)
         assert any('diagnoses.csv' in fp for fp in file_paths)
-        
+
         # Verify CSV schema matches expected columns
         symptoms_csv = os.path.join(temp_dirs['output'], 'symptoms.csv')
         if os.path.exists(symptoms_csv):
@@ -487,7 +484,7 @@ class TestRealConsultationCases:
             expected_columns = ['symptom_id', 'consultation_session_id', 'patient_id', 'symptom_name']
             for col in expected_columns:
                 assert col in df.columns, f"Missing column: {col}"
-        
+
         # Verify manifest
         manifest_path = exporter.create_manifest(
             str(consultation_session_id),
@@ -495,10 +492,10 @@ class TestRealConsultationCases:
             processing_time=10.5
         )
         assert os.path.exists(manifest_path)
-        
+
         with open(manifest_path, 'r', encoding='utf-8') as f:
             manifest = json.load(f)
-        
+
         assert manifest['consultation_session_id'] == str(consultation_session_id)
         assert manifest['total_entities_extracted'] == 3
         assert 'files' in manifest
@@ -508,19 +505,20 @@ class TestRealConsultationCases:
         """Test end-to-end extraction with case_2.md - verify CSV outputs and manifest."""
         if not os.path.exists(case_files['case_2']):
             pytest.skip("Case 2 file not found")
-        
+
         # Read case file (read but use mock extraction for testing)
         handler = InputHandler()
         _transcript = handler.read_transcript(case_files['case_2'])
-        
-        # Generate test data
+
+        # Generate test data and create mapper
         generator = TestDataGenerator()
         patient_data = generator.generate_patient()
         doctor_data = generator.generate_doctor()
         patient_id = uuid.UUID(patient_data['patient_id'])
         doctor_id = uuid.UUID(doctor_data['doctor_id'])
         consultation_session_id = uuid.uuid4()
-        
+        mapper = DataMapper(consultation_session_id, patient_id, doctor_id)
+
         # Create mock extraction result for case_2 (sore throat)
         mock_extraction = {
             'symptoms': [
@@ -537,28 +535,26 @@ class TestRealConsultationCases:
             'red_flags': [],
             'follow_up': []
         }
-        
+
         # Map and export
-        mapper = DataMapper(consultation_session_id, patient_id, doctor_id)
         mapped_data = {
             'symptoms': mapper.map_symptoms(mock_extraction['symptoms']),
             'medications': mapper.map_medications(mock_extraction['medications']),
             'diagnoses': mapper.map_diagnoses(mock_extraction['diagnoses'])[0],
         }
-        
         exporter = CSVExporter(temp_dirs['output'])
         _file_paths = exporter.export_all(mapped_data)
-        
+
         # Verify manifest
         manifest_path = exporter.create_manifest(
             str(consultation_session_id),
             total_entities=3,
             processing_time=8.2
         )
-        
+
         with open(manifest_path, 'r', encoding='utf-8') as f:
             manifest = json.load(f)
-        
+
         assert manifest['consultation_session_id'] == str(consultation_session_id)
         assert 'extraction_timestamp' in manifest
         assert 'files' in manifest
@@ -586,11 +582,11 @@ class TestRealConsultationCases:
             result = extractor.extract_symptoms("Patient has headache")
             # If retry works, we get results
             assert result is not None
-        except Exception:
+        except (ValueError, IOError, RuntimeError, ExtractionError):
             # If retry doesn't work in this test setup, that's okay - we're testing the mechanism exists
             pass
     
-    def test_use_test_data_flag_integration(self, temp_dirs, sample_consultation):
+    def test_use_test_data_flag_integration(self, _temp_dirs, _sample_consultation):
         """Test --use-test-data flag: verify test data generation and UUID consistency."""
         generator = TestDataGenerator()
         
