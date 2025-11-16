@@ -1,0 +1,313 @@
+# Few-shot learning examples for clinical entity extraction
+# These examples train the LLM to extract structured clinical data from consultation transcripts
+
+# Medication extraction examples
+medications:
+  - text: "Patient takes Aspirin 100mg daily for heart health."
+    extractions:
+      - class: "medication"
+        text: "Aspirin"
+        attributes:
+          medication_group: "med_1"
+      - class: "dosage"
+        text: "100mg"
+        attributes:
+          medication_group: "med_1"
+      - class: "frequency"
+        text: "daily"
+        attributes:
+          medication_group: "med_1"
+      - class: "indication"
+        text: "heart health"
+        attributes:
+          medication_group: "med_1"
+  
+  - text: "Continue NSAIDs (ibuprofen) as needed, with food. Add muscle relaxants if pain limits movement."
+    extractions:
+      - class: "medication"
+        text: "ibuprofen"
+        attributes:
+          medication_group: "med_1"
+      - class: "frequency"
+        text: "as needed"
+        attributes:
+          medication_group: "med_1"
+      - class: "route"
+        text: "with food"
+        attributes:
+          medication_group: "med_1"
+      - class: "medication"
+        text: "muscle relaxants"
+        attributes:
+          medication_group: "med_2"
+      - class: "indication"
+        text: "if pain limits movement"
+        attributes:
+          medication_group: "med_2"
+
+# Symptom extraction examples
+symptoms:
+  - text: "My lower back has been really painful since yesterday morning. It's a sharp pain when I move."
+    extractions:
+      - class: "symptom_name"
+        text: "lower back pain"
+        attributes:
+          symptom_group: "sym_1"
+      - class: "severity"
+        text: "really painful"
+        attributes:
+          symptom_group: "sym_1"
+      - class: "onset"
+        text: "yesterday morning"
+        attributes:
+          symptom_group: "sym_1"
+      - class: "temporal_pattern"
+        text: "sharp pain when I move"
+        attributes:
+          symptom_group: "sym_1"
+  
+  - text: "I've been feeling very tired lately and have frequent headaches for about two weeks."
+    extractions:
+      - class: "symptom_name"
+        text: "tired"
+        attributes:
+          symptom_group: "sym_1"
+      - class: "severity"
+        text: "very"
+        attributes:
+          symptom_group: "sym_1"
+      - class: "duration"
+        text: "about two weeks"
+        attributes:
+          symptom_group: "sym_1"
+      - class: "symptom_name"
+        text: "headaches"
+        attributes:
+          symptom_group: "sym_2"
+      - class: "temporal_pattern"
+        text: "frequent"
+        attributes:
+          symptom_group: "sym_2"
+      - class: "duration"
+        text: "about two weeks"
+        attributes:
+          symptom_group: "sym_2"
+
+# Diagnosis extraction examples
+diagnoses:
+  - text: "Findings are consistent with acute mechanical lower-back strain, likely from lifting."
+    extractions:
+      - class: "diagnosis"
+        text: "acute mechanical lower-back strain"
+        attributes:
+          diagnosis_group: "diag_1"
+      - class: "certainty"
+        text: "consistent with"
+        attributes:
+          diagnosis_group: "diag_1"
+      - class: "clinical_features"
+        text: "likely from lifting"
+        attributes:
+          diagnosis_group: "diag_1"
+  
+  - text: "Probable bacterial tonsillitis based on examination findings and symptom duration."
+    extractions:
+      - class: "diagnosis"
+        text: "bacterial tonsillitis"
+        attributes:
+          diagnosis_group: "diag_1"
+      - class: "certainty"
+        text: "probable"
+        attributes:
+          diagnosis_group: "diag_1"
+      - class: "clinical_features"
+        text: "examination findings and symptom duration"
+        attributes:
+          diagnosis_group: "diag_1"
+
+# Vital signs extraction examples
+vital_signs:
+  - text: "Temperature 38.2°C, blood pressure 120/80, heart rate 78 bpm, oxygen saturation 98%."
+    extractions:
+      - class: "temperature"
+        text: "38.2°C"
+      - class: "blood_pressure"
+        text: "120/80"
+      - class: "heart_rate"
+        text: "78 bpm"
+      - class: "oxygen_saturation"
+        text: "98%"
+  
+  - text: "BP 135/85 mmHg, pulse 92, respiratory rate 16 breaths per minute."
+    extractions:
+      - class: "blood_pressure"
+        text: "135/85 mmHg"
+      - class: "heart_rate"
+        text: "pulse 92"
+      - class: "respiratory_rate"
+        text: "16 breaths per minute"
+
+# Physical examination extraction examples
+physical_exam:
+  - text: "You have muscle spasm and tenderness on the left side of your lower back. Your leg strength and nerve reflexes are normal."
+    extractions:
+      - class: "examination_type"
+        text: "musculoskeletal"
+        attributes:
+          exam_group: "exam_1"
+      - class: "anatomical_site"
+        text: "left side of lower back"
+        attributes:
+          exam_group: "exam_1"
+      - class: "findings"
+        text: "muscle spasm and tenderness"
+        attributes:
+          exam_group: "exam_1"
+      - class: "examination_type"
+        text: "neurological"
+        attributes:
+          exam_group: "exam_2"
+      - class: "findings"
+        text: "leg strength and nerve reflexes are normal"
+        attributes:
+          exam_group: "exam_2"
+  
+  - text: "Throat examination reveals bilateral tonsillar enlargement with white exudate. Cervical lymph nodes palpable and tender."
+    extractions:
+      - class: "examination_type"
+        text: "throat examination"
+        attributes:
+          exam_group: "exam_1"
+      - class: "anatomical_site"
+        text: "tonsils"
+        attributes:
+          exam_group: "exam_1"
+      - class: "findings"
+        text: "bilateral tonsillar enlargement with white exudate"
+        attributes:
+          exam_group: "exam_1"
+      - class: "severity"
+        text: "enlargement"
+        attributes:
+          exam_group: "exam_1"
+      - class: "anatomical_site"
+        text: "cervical lymph nodes"
+        attributes:
+          exam_group: "exam_2"
+      - class: "findings"
+        text: "palpable and tender"
+        attributes:
+          exam_group: "exam_2"
+
+# Red flags extraction examples
+red_flags:
+  - text: "Return immediately if leg weakness, numbness, bowel/bladder changes, or worsening severe pain occur."
+    extractions:
+      - class: "warning_description"
+        text: "leg weakness"
+        attributes:
+          warning_group: "warn_1"
+      - class: "warning_type"
+        text: "neurological"
+        attributes:
+          warning_group: "warn_1"
+      - class: "severity"
+        text: "immediate"
+        attributes:
+          warning_group: "warn_1"
+      - class: "warning_description"
+        text: "numbness"
+        attributes:
+          warning_group: "warn_2"
+      - class: "warning_type"
+        text: "neurological"
+        attributes:
+          warning_group: "warn_2"
+      - class: "severity"
+        text: "immediate"
+        attributes:
+          warning_group: "warn_2"
+      - class: "warning_description"
+        text: "bowel/bladder changes"
+        attributes:
+          warning_group: "warn_3"
+      - class: "warning_type"
+        text: "autonomic"
+        attributes:
+          warning_group: "warn_3"
+      - class: "severity"
+        text: "immediate"
+        attributes:
+          warning_group: "warn_3"
+      - class: "warning_description"
+        text: "worsening severe pain"
+        attributes:
+          warning_group: "warn_4"
+      - class: "warning_type"
+        text: "pain escalation"
+        attributes:
+          warning_group: "warn_4"
+      - class: "severity"
+        text: "immediate"
+        attributes:
+          warning_group: "warn_4"
+
+# Follow-up plan extraction examples
+follow_up:
+  - text: "Avoid heavy lifting for 1-2 weeks. Return in 7 days if no improvement."
+    extractions:
+      - class: "follow_up_type"
+        text: "activity restriction"
+        attributes:
+          followup_group: "fu_1"
+      - class: "action"
+        text: "avoid heavy lifting"
+        attributes:
+          followup_group: "fu_1"
+      - class: "timing"
+        text: "1-2 weeks"
+        attributes:
+          followup_group: "fu_1"
+      - class: "follow_up_type"
+        text: "review appointment"
+        attributes:
+          followup_group: "fu_2"
+      - class: "timing"
+        text: "7 days"
+        attributes:
+          followup_group: "fu_2"
+      - class: "condition"
+        text: "if no improvement"
+        attributes:
+          followup_group: "fu_2"
+  
+  - text: "Complete the full 10-day antibiotic course. Follow up in 2 weeks or sooner if symptoms worsen."
+    extractions:
+      - class: "follow_up_type"
+        text: "medication compliance"
+        attributes:
+          followup_group: "fu_1"
+      - class: "action"
+        text: "complete the full antibiotic course"
+        attributes:
+          followup_group: "fu_1"
+      - class: "timing"
+        text: "10-day"
+        attributes:
+          followup_group: "fu_1"
+      - class: "follow_up_type"
+        text: "review appointment"
+        attributes:
+          followup_group: "fu_2"
+      - class: "timing"
+        text: "2 weeks"
+        attributes:
+          followup_group: "fu_2"
+      - class: "condition"
+        text: "or sooner if symptoms worsen"
+        attributes:
+          followup_group: "fu_2"
+      - class: "priority"
+        text: "urgent if worsening"
+        attributes:
+          followup_group: "fu_2"
