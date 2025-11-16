@@ -1,0 +1,45 @@
+# GP Consultation Extractor Configuration
+# This file provides default configuration values that can be overridden by environment variables
+
+llm:
+  # LLM provider: 'gemini' or 'bedrock'
+  # Override with AWS_BEDROCK_ENABLED=true environment variable
+  provider: gemini
+  
+  gemini:
+    # Gemini API key - set via LANGEXTRACT_API_KEY environment variable
+    # api_key: ${LANGEXTRACT_API_KEY}
+    model: gemini-2.5-pro
+  
+  bedrock:
+    # AWS region for Bedrock - set via AWS_REGION environment variable
+    region: us-east-1
+    # Claude model ID - override with MODEL_ID environment variable
+    model_id: anthropic.claude-sonnet-4-5-20250929-v1:0
+
+extraction:
+  # Minimum confidence score for extracted entities (0.0 to 1.0)
+  # Override with EXTRACTION_CONFIDENCE_THRESHOLD environment variable
+  confidence_threshold: 0.7
+  
+  # Number of retry attempts for failed API calls
+  retry_attempts: 1
+  
+  # Batch size for processing multiple extractions
+  batch_size: 10
+
+output:
+  # Output directory for CSV files
+  # Override with OUTPUT_DIR environment variable
+  directory: /output
+  
+  # CSV file encoding
+  csv_encoding: utf-8
+
+logging:
+  # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  # Override with LOG_LEVEL environment variable
+  level: INFO
+  
+  # Logging format: 'json' or 'text'
+  format: json
