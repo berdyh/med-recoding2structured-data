@@ -670,11 +670,14 @@ class DataMapper:
             'session_start_datetime': metadata.get('session_start_datetime', self._get_timestamp()),
             'full_transcript': transcript,
             'transcript_language': metadata.get('transcript_language', 'en-UK'),
-            'nlp_processed_flag': True,
+            'nlp_processed_flag': bool(True),  # Explicitly convert to Python bool
             'created_at': self._get_timestamp()
         }
         
-        return pd.DataFrame([session_data])
+        df = pd.DataFrame([session_data])
+        # Ensure boolean column is Python bool, not numpy bool
+        df['nlp_processed_flag'] = df['nlp_processed_flag'].astype(bool)
+        return df
     
     def generate_consultation(self, metadata: Dict) -> pd.DataFrame:
         """Generate CONSULTATIONS table row.

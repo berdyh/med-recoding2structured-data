@@ -73,7 +73,7 @@ class TestDataGenerator:
         last_name = random.choice(self.LAST_NAMES)
         
         return {
-            'patient_id': patient_id,
+            'patient_id': str(patient_id),  # Convert UUID to string for consistency
             'nhs_number': self.generate_nhs_number(),
             'first_name': first_name,
             'last_name': last_name,
@@ -104,7 +104,7 @@ class TestDataGenerator:
         last_name = random.choice(self.LAST_NAMES)
         
         return {
-            'doctor_id': doctor_id,
+            'doctor_id': str(doctor_id),  # Convert UUID to string for consistency
             'gmc_number': self._generate_gmc_number(),
             'first_name': first_name,
             'last_name': last_name,

@@ -259,7 +259,8 @@ class TestDataMapper:
         
         assert len(df) == 1
         assert df.iloc[0]['full_transcript'] == transcript
-        assert df.iloc[0]['nlp_processed_flag'] is True
+        # Use bool() to handle numpy bool types
+        assert bool(df.iloc[0]['nlp_processed_flag']) is True
         assert df.iloc[0]['consultation_session_id'] == str(mapper.consultation_session_id)
     
     def test_generate_consultation(self, mapper):

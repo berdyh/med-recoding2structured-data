@@ -87,9 +87,27 @@ class CSVExporter:
                     value = sample.iloc[0]
                     if isinstance(value, (dict, list)):
                         # Serialize to JSON string
-                        df[col] = df[col].apply(
-                            lambda x: json.dumps(x) if pd.notna(x) and x else ''
-                        )
+                        def serialize_value(x):
+                            # Check for None/NaN first (handles both None and NaN)
+                            if x is None:
+                                return ''
+                            try:
+                                if pd.isna(x):
+                                    return ''
+                            except (ValueError, TypeError):
+                                # If pd.isna fails (e.g., for arrays), check type directly
+                                pass
+                            
+                            # Check if it's a dict or list
+                            if isinstance(x, (dict, list)):
+                                if isinstance(x, dict) and len(x) == 0:
+                                    return '{}'
+                                if isinstance(x, list) and len(x) == 0:
+                                    return '[]'
+                                return json.dumps(x)
+                            return ''
+                        
+                        df[col] = df[col].apply(serialize_value)
         
         return df
     

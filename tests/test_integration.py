@@ -27,26 +27,42 @@ from test_data_generator import TestDataGenerator
 import uuid
 
 
+# Module-level fixtures for use across test classes
+@pytest.fixture
+def temp_dirs():
+    """Create temporary directories for testing."""
+    input_dir = tempfile.mkdtemp()
+    output_dir = tempfile.mkdtemp()
+    config_dir = tempfile.mkdtemp()
+    
+    yield {
+        'input': input_dir,
+        'output': output_dir,
+        'config': config_dir
+    }
+    
+    # Cleanup
+    shutil.rmtree(input_dir, ignore_errors=True)
+    shutil.rmtree(output_dir, ignore_errors=True)
+    shutil.rmtree(config_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def mock_llm_provider():
+    """Create a mock LLM provider."""
+    mock_provider = Mock(spec=LLMProviderManager)
+    mock_provider.get_provider.return_value = 'gemini'
+    mock_provider.validate_credentials.return_value = True
+    mock_provider.get_api_credentials.return_value = {
+        'api_key': 'test-key',
+        'model': 'gemini-2.5-pro',
+        'use_custom_endpoint': False
+    }
+    return mock_provider
+
+
 class TestEndToEndExtraction:
     """Test complete extraction pipeline."""
-    
-    @pytest.fixture
-    def temp_dirs(self):
-        """Create temporary directories for testing."""
-        input_dir = tempfile.mkdtemp()
-        output_dir = tempfile.mkdtemp()
-        config_dir = tempfile.mkdtemp()
-        
-        yield {
-            'input': input_dir,
-            'output': output_dir,
-            'config': config_dir
-        }
-        
-        # Cleanup
-        shutil.rmtree(input_dir, ignore_errors=True)
-        shutil.rmtree(output_dir, ignore_errors=True)
-        shutil.rmtree(config_dir, ignore_errors=True)
     
     @pytest.fixture
     def sample_consultation(self, temp_dirs):
@@ -81,19 +97,6 @@ Findings are consistent with acute mechanical lower-back strain, likely from lif
             f.write(consultation_text)
         
         return filepath
-    
-    @pytest.fixture
-    def mock_llm_provider(self):
-        """Create a mock LLM provider."""
-        mock_provider = Mock(spec=LLMProviderManager)
-        mock_provider.get_provider.return_value = 'gemini'
-        mock_provider.validate_credentials.return_value = True
-        mock_provider.get_api_credentials.return_value = {
-            'api_key': 'test-key',
-            'model': 'gemini-2.5-pro',
-            'use_custom_endpoint': False
-        }
-        return mock_provider
     
     @pytest.fixture
     def mock_extraction_result(self):
@@ -586,7 +589,7 @@ class TestRealConsultationCases:
             # If retry doesn't work in this test setup, that's okay - we're testing the mechanism exists
             pass
     
-    def test_use_test_data_flag_integration(self, _temp_dirs, _sample_consultation):
+    def test_use_test_data_flag_integration(self, temp_dirs):
         """Test --use-test-data flag: verify test data generation and UUID consistency."""
         generator = TestDataGenerator()
         

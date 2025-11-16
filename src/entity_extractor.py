@@ -44,6 +44,7 @@ class ClinicalEntityExtractor:
         
         self.llm_provider = llm_provider
         self.few_shot_examples = self._load_few_shot_examples(few_shot_config_path)
+        # Default retry attempts - can be overridden
         self.retry_attempts = 1
         self.retry_delay = 1  # seconds
     
@@ -190,10 +191,17 @@ class ClinicalEntityExtractor:
                     raise ExtractionError(f"Unsupported provider: {provider}")
                 
                 logger.info('Successfully extracted %s entities', entity_type)
+                # Reset retry delay on success
+                self.retry_delay = 1
                 return self._parse_extraction_result(result)
             
+            except ExtractionError:
+                # Allow ExtractionError to propagate without retry
+                raise
             except (ValueError, IOError, RuntimeError) as e:
-                if attempt < self.retry_attempts:
+                is_last_attempt = (attempt >= self.retry_attempts)
+                
+                if not is_last_attempt:
                     logger.warning(
                         'Extraction attempt %d failed for %s: %s. Retrying in %ds...',
                         attempt + 1, entity_type, e, self.retry_delay
@@ -201,7 +209,22 @@ class ClinicalEntityExtractor:
                     time.sleep(self.retry_delay)
                     self.retry_delay *= 2  # Exponential backoff
                 else:
-                    logger.error('Extraction failed for %s after %d attempts: %s', entity_type, attempt + 1, e)
+                    logger.error('Extraction failed for %s after %d attempts: %s', entity_type, self.retry_attempts + 1, e)
+                    raise ExtractionError(f"Failed to extract {entity_type}: {e}") from e
+            except Exception as e:
+                # Catch any other unexpected exceptions and wrap them
+                # This handles cases where API libraries raise generic exceptions
+                is_last_attempt = (attempt >= self.retry_attempts)
+                
+                if not is_last_attempt:
+                    logger.warning(
+                        'Extraction attempt %d failed for %s (unexpected error): %s. Retrying in %ds...',
+                        attempt + 1, entity_type, e, self.retry_delay
+                    )
+                    time.sleep(self.retry_delay)
+                    self.retry_delay *= 2  # Exponential backoff
+                else:
+                    logger.error('Extraction failed for %s after %d attempts (unexpected error): %s', entity_type, self.retry_attempts + 1, e)
                     raise ExtractionError(f"Failed to extract {entity_type}: {e}") from e
     
     def _parse_extraction_result(self, result) -> List[Dict]:
