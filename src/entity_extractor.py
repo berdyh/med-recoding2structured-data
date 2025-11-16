@@ -149,8 +149,9 @@ class ClinicalEntityExtractor:
                     if credentials.get('use_custom_endpoint'):
                         # Use custom API Gateway endpoint
                         # Prepare payload for custom endpoint
+                        # Match LangExtract's expected format: text_or_documents instead of text
                         payload = {
-                            'text': text,
+                            'text_or_documents': text,
                             'prompt_description': prompt_description,
                             'examples': [
                                 {

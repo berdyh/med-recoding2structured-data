@@ -311,8 +311,26 @@ class LLMProviderManager:
                 timeout=60
             )
             
+            # If request failed, include response body in error message
+            if not response.ok:
+                error_detail = f"Status: {response.status_code}"
+                try:
+                    error_body = response.json()
+                    error_detail += f", Response: {error_body}"
+                except:
+                    error_detail += f", Response text: {response.text[:500]}"
+                raise requests.exceptions.HTTPError(error_detail, response=response)
+            
             response.raise_for_status()
             return response.json()
             
         except requests.exceptions.RequestException as e:
-            raise LLMProviderError(f"Custom endpoint request failed: {e}") from e
+            # Include more details in error message
+            error_msg = f"Custom endpoint request failed: {e}"
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_body = e.response.json()
+                    error_msg += f" | Response: {error_body}"
+                except:
+                    error_msg += f" | Response text: {e.response.text[:500]}"
+            raise LLMProviderError(error_msg) from e
