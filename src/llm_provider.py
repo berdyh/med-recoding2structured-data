@@ -7,9 +7,18 @@ and provides a unified interface for credential validation and provider selectio
 import os
 from typing import Dict, Optional
 
-import boto3
 import requests
-from botocore.exceptions import ClientError, NoCredentialsError
+
+# Optional imports for Bedrock support
+try:
+    import boto3
+    from botocore.exceptions import ClientError, NoCredentialsError
+    BOTO3_AVAILABLE = True
+except ImportError:
+    boto3 = None
+    ClientError = Exception
+    NoCredentialsError = Exception
+    BOTO3_AVAILABLE = False
 
 
 class LLMProviderError(Exception):
@@ -38,6 +47,16 @@ class LLMProviderManager:
                 f"Unsupported provider: {self.provider}. "
                 f"Must be one of {self.SUPPORTED_PROVIDERS}"
             )
+        
+        # Check if boto3 is available when using Bedrock with standard boto3 (not custom endpoint)
+        if self.provider == 'bedrock':
+            bedrock_config = self.config.get('bedrock', {})
+            use_custom_endpoint = bedrock_config.get('use_custom_endpoint') or bedrock_config.get('api_endpoint')
+            if not use_custom_endpoint and not BOTO3_AVAILABLE:
+                raise LLMProviderError(
+                    "boto3 is required for Bedrock provider (standard mode). "
+                    "Install it with: pip install boto3, or use a custom API Gateway endpoint."
+                )
         
         self._bedrock_client = None
     

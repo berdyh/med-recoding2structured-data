@@ -11,6 +11,12 @@ import yaml
 from typing import Any, Optional, Dict
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+
 
 class ConfigurationError(Exception):
     """Raised when configuration is invalid or missing required values."""
@@ -52,6 +58,15 @@ class ConfigManager:
         Args:
             config_file: Path to YAML configuration file. If None, uses default config.
         """
+        # Load .env file if available
+        if DOTENV_AVAILABLE:
+            # Try to load .env from current directory or project root
+            env_path = Path('.env')
+            if not env_path.exists():
+                env_path = Path(__file__).parent.parent / '.env'
+            if env_path.exists():
+                load_dotenv(env_path)
+        
         self.config = self._load_config(config_file)
         self._apply_env_overrides()
     

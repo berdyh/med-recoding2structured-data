@@ -12,14 +12,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict
 
-from config_manager import ConfigManager
-from llm_provider import LLMProviderManager, LLMProviderError
-from input_handler import InputHandler
-from entity_extractor import ClinicalEntityExtractor, ExtractionError
-from data_mapper import DataMapper
-from csv_exporter import CSVExporter
-from validator import Validator
-from test_data_generator import TestDataGenerator
+from .config_manager import ConfigManager
+from .llm_provider import LLMProviderManager, LLMProviderError
+from .input_handler import InputHandler
+from .entity_extractor import ClinicalEntityExtractor, ExtractionError
+from .data_mapper import DataMapper
+from .csv_exporter import CSVExporter
+from .validator import Validator
+from .test_data_generator import TestDataGenerator
 
 
 # Configure logging
@@ -244,7 +244,7 @@ def main():
 
         # Initialize LLM provider
         logger.info("Initializing LLM provider...")
-        llm_provider = _initialize_llm_provider(config)
+        llm_provider = _initialize_llm_provider(config.config['llm'])
         if not llm_provider:
             return EXIT_CONFIG_ERROR
 

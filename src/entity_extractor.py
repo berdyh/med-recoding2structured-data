@@ -16,7 +16,7 @@ except ImportError:
     # For testing without langextract installed
     lx = None
 
-from llm_provider import LLMProviderManager, LLMProviderError
+from .llm_provider import LLMProviderManager, LLMProviderError
 
 
 logger = logging.getLogger(__name__)
