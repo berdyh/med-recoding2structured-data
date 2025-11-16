@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 class ExtractionError(Exception):
     """Raised when entity extraction fails."""
-    pass
 
 
 class ClinicalEntityExtractor:
@@ -65,7 +64,7 @@ class ClinicalEntityExtractor:
             raise ExtractionError(f"Few-shot examples file not found: {config_path}")
         
         try:
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 examples = yaml.safe_load(f)
             
             if not examples:
@@ -73,9 +72,9 @@ class ClinicalEntityExtractor:
             
             return examples
         except yaml.YAMLError as e:
-            raise ExtractionError(f"Failed to parse few-shot examples: {e}")
-        except Exception as e:
-            raise ExtractionError(f"Failed to load few-shot examples: {e}")
+            raise ExtractionError(f"Failed to parse few-shot examples: {e}") from e
+        except (IOError, OSError) as e:
+            raise ExtractionError(f"Failed to load few-shot examples: {e}") from e
     
     def _convert_to_langextract_examples(self, examples_config: List[Dict]) -> List:
         """Convert YAML examples to LangExtract ExampleData format.
@@ -190,20 +189,20 @@ class ClinicalEntityExtractor:
                 else:
                     raise ExtractionError(f"Unsupported provider: {provider}")
                 
-                logger.info(f"Successfully extracted {entity_type} entities")
+                logger.info('Successfully extracted %s entities', entity_type)
                 return self._parse_extraction_result(result)
             
-            except Exception as e:
+            except (ValueError, IOError, RuntimeError) as e:
                 if attempt < self.retry_attempts:
                     logger.warning(
-                        f"Extraction attempt {attempt + 1} failed for {entity_type}: {e}. "
-                        f"Retrying in {self.retry_delay}s..."
+                        'Extraction attempt %d failed for %s: %s. Retrying in %ds...',
+                        attempt + 1, entity_type, e, self.retry_delay
                     )
                     time.sleep(self.retry_delay)
                     self.retry_delay *= 2  # Exponential backoff
                 else:
-                    logger.error(f"Extraction failed for {entity_type} after {attempt + 1} attempts: {e}")
-                    raise ExtractionError(f"Failed to extract {entity_type}: {e}")
+                    logger.error('Extraction failed for %s after %d attempts: %s', entity_type, attempt + 1, e)
+                    raise ExtractionError(f"Failed to extract {entity_type}: {e}") from e
     
     def _parse_extraction_result(self, result) -> List[Dict]:
         """Parse LangExtract result into list of dictionaries.
@@ -383,46 +382,46 @@ class ClinicalEntityExtractor:
         try:
             results['symptoms'] = self.extract_symptoms(text)
         except ExtractionError as e:
-            logger.warning(f"Symptom extraction failed: {e}")
+            logger.warning('Symptom extraction failed: %s', e)
             results['symptoms'] = []
         
         try:
             results['medications'] = self.extract_medications(text)
         except ExtractionError as e:
-            logger.warning(f"Medication extraction failed: {e}")
+            logger.warning('Medication extraction failed: %s', e)
             results['medications'] = []
         
         try:
             results['diagnoses'] = self.extract_diagnoses(text)
         except ExtractionError as e:
-            logger.warning(f"Diagnosis extraction failed: {e}")
+            logger.warning('Diagnosis extraction failed: %s', e)
             results['diagnoses'] = []
         
         try:
             results['vital_signs'] = self.extract_vital_signs(text)
         except ExtractionError as e:
-            logger.warning(f"Vital signs extraction failed: {e}")
+            logger.warning('Vital signs extraction failed: %s', e)
             results['vital_signs'] = []
         
         try:
             results['physical_exam'] = self.extract_physical_exam(text)
         except ExtractionError as e:
-            logger.warning(f"Physical exam extraction failed: {e}")
+            logger.warning('Physical exam extraction failed: %s', e)
             results['physical_exam'] = []
         
         try:
             results['red_flags'] = self.extract_red_flags(text)
         except ExtractionError as e:
-            logger.warning(f"Red flags extraction failed: {e}")
+            logger.warning('Red flags extraction failed: %s', e)
             results['red_flags'] = []
         
         try:
             results['follow_up'] = self.extract_follow_up(text)
         except ExtractionError as e:
-            logger.warning(f"Follow-up extraction failed: {e}")
+            logger.warning('Follow-up extraction failed: %s', e)
             results['follow_up'] = []
         
         total_entities = sum(len(entities) for entities in results.values())
-        logger.info(f"Extraction complete. Total entities extracted: {total_entities}")
+        logger.info('Extraction complete. Total entities extracted: %d', total_entities)
         
         return results
