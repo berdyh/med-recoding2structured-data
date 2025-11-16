@@ -1,0 +1,15 @@
+# Core dependencies
+langextract>=0.1.0
+pandas>=2.0.0
+pyyaml>=6.0
+
+# LLM providers
+boto3>=1.28.0  # For AWS Bedrock
+google-generativeai>=0.3.0  # For Gemini
+
+# Configuration and utilities
+python-dotenv>=1.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-mock>=3.11.0
