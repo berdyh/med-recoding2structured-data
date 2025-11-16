@@ -149,27 +149,59 @@ class ClinicalEntityExtractor:
                     if credentials.get('use_custom_endpoint'):
                         # Use custom API Gateway endpoint
                         # Prepare payload for custom endpoint
-                        # The endpoint expects: team_id, api_token, model, text_or_documents, prompt_description, examples
+                        # The endpoint expects: team_id, api_token, model, messages array
+                        
+                        # Build the user message content with text, prompt, and examples
+                        user_content_parts = []
+                        
+                        # Add the prompt description
+                        if prompt_description:
+                            user_content_parts.append(f"Task: {prompt_description.strip()}")
+                        
+                        # Add few-shot examples if available
+                        if examples:
+                            user_content_parts.append("\nExamples:")
+                            for ex in examples:
+                                example_text = ex.text if hasattr(ex, 'text') else ex.get('text', '')
+                                extractions_list = []
+                                if hasattr(ex, 'extractions'):
+                                    for e in ex.extractions:
+                                        ext_class = getattr(e, 'extraction_class', '')
+                                        ext_text = getattr(e, 'extraction_text', '')
+                                        extractions_list.append(f"  - {ext_class}: {ext_text}")
+                                elif isinstance(ex, dict) and 'extractions' in ex:
+                                    for e in ex['extractions']:
+                                        ext_class = e.get('class') or e.get('extraction_class', '')
+                                        ext_text = e.get('text') or e.get('extraction_text', '')
+                                        extractions_list.append(f"  - {ext_class}: {ext_text}")
+                                
+                                if extractions_list:
+                                    user_content_parts.append(f"\nExample text: {example_text}")
+                                    user_content_parts.append("Extractions:")
+                                    user_content_parts.extend(extractions_list)
+                        
+                        # Add the actual text to extract from
+                        user_content_parts.append(f"\n\nText to extract from:\n{text}")
+                        
+                        user_message_content = "\n".join(user_content_parts)
+                        
+                        # Construct messages array in chat format
+                        messages = [
+                            {
+                                'role': 'system',
+                                'content': prompt_description.strip() if prompt_description else 'Extract structured entities from the provided text.'
+                            },
+                            {
+                                'role': 'user',
+                                'content': user_message_content
+                            }
+                        ]
+                        
                         payload = {
                             'team_id': credentials.get('team_id'),
                             'api_token': credentials.get('api_token') or credentials.get('api_key'),
                             'model': model_id,  # Use 'model' not 'model_id' for this endpoint
-                            'text_or_documents': text,
-                            'prompt_description': prompt_description,
-                            'examples': [
-                                {
-                                    'text': ex.text,
-                                    'extractions': [
-                                        {
-                                            'class': e.extraction_class,
-                                            'text': e.extraction_text,
-                                            'attributes': e.attributes if hasattr(e, 'attributes') else {}
-                                        }
-                                        for e in ex.extractions
-                                    ]
-                                }
-                                for ex in examples
-                            ]
+                            'messages': messages
                         }
                         
                         # Validate required fields
