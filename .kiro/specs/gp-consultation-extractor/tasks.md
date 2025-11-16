@@ -182,7 +182,7 @@ This implementation plan breaks down the GP Consultation Data Extraction System 
     - Maintain schema consistency
     - _Requirements: 5.5, 13.4, 14.1_
 
-  - [ ] 9.9 Write unit tests for DataMapper
+  - [x] 9.9 Write unit tests for DataMapper
     - Test UUID generation and consistency
     - Test each mapping method with sample data
     - Test foreign key relationships
@@ -215,7 +215,7 @@ This implementation plan breaks down the GP Consultation Data Extraction System 
     - Include total entities extracted and processing time
     - _Requirements: 7.6, 14.1_
 
-  - [ ] 10.5 Write unit tests for CSVExporter
+  - [x] 10.5 Write unit tests for CSVExporter
     - Test CSV file generation
     - Test JSONB serialization
     - Test manifest creation
