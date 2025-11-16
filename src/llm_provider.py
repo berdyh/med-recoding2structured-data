@@ -209,19 +209,19 @@ class LLMProviderManager:
                 
                 return True
             
-        except NoCredentialsError:
-            raise LLMProviderError(
-                "AWS credentials not found. Configure AWS credentials via "
-                "environment variables, ~/.aws/credentials, or IAM role."
-            )
-        except ClientError as e:
-            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
-            error_message = e.response.get('Error', {}).get('Message', str(e))
-            raise LLMProviderError(
-                f"AWS Bedrock access failed ({error_code}): {error_message}"
-            )
-        except Exception as e:
-            raise LLMProviderError(f"Failed to validate Bedrock credentials: {str(e)}")
+            except NoCredentialsError:
+                raise LLMProviderError(
+                    "AWS credentials not found. Configure AWS credentials via "
+                    "environment variables, ~/.aws/credentials, or IAM role."
+                )
+            except ClientError as e:
+                error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+                error_message = e.response.get('Error', {}).get('Message', str(e))
+                raise LLMProviderError(
+                    f"AWS Bedrock access failed ({error_code}): {error_message}"
+                )
+            except Exception as e:
+                raise LLMProviderError(f"Failed to validate Bedrock credentials: {str(e)}")
     
     def get_bedrock_client(self):
         """Get boto3 Bedrock runtime client.
