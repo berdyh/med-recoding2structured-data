@@ -354,9 +354,9 @@ class Validator:
 
         # Check if this is raw extraction format or mapped format
         if "class" in diagnosis and "attributes" in diagnosis:
-            # Raw extraction format - check attributes or text
+            # Raw extraction format - check attributes only
             attrs = diagnosis.get("attributes", {})
-            certainty = attrs.get("certainty") or diagnosis.get("text")
+            certainty = attrs.get("certainty")
         else:
             # Mapped format - check direct fields
             certainty = diagnosis.get("diagnostic_certainty")
@@ -437,8 +437,11 @@ class Validator:
             if not is_valid:
                 all_errors.extend([f"Medication: {e}" for e in errors])
 
-        # Validate diagnoses
+        # Validate diagnoses (only entities with class="diagnosis")
         for diagnosis in data.get("diagnoses", []):
+            # Skip non-diagnosis entities (e.g., "certainty" entities)
+            if isinstance(diagnosis, dict) and diagnosis.get("class") != "diagnosis":
+                continue
             is_valid, errors = self.validate_diagnosis(diagnosis)
             if not is_valid:
                 all_errors.extend([f"Diagnosis: {e}" for e in errors])
