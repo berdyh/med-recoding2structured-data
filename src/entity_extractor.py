@@ -4,11 +4,14 @@ This module extracts structured clinical entities from consultation transcripts
 using LangExtract with few-shot learning examples.
 """
 
+# pylint: disable=too-many-branches,too-many-locals,too-many-statements,too-many-nested-blocks,too-many-return-statements,broad-exception-caught,too-few-public-methods,inconsistent-return-statements
+
 import json
 import logging
 import re
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
 
@@ -148,13 +151,15 @@ class ClinicalEntityExtractor:
                 elif provider == "bedrock":
                     model_id = credentials.get("model_id")
 
-                    # Use langextract-bedrock plugin for standard Bedrock
-                    # For custom endpoints, use manual API approach and convert to LangExtract format
+                    # Use langextract-bedrock plugin for standard Bedrock.
+                    # For custom endpoints, use manual API approach and convert to
+                    # LangExtract format.
 
                     if credentials.get("use_custom_endpoint"):
-                        # Custom endpoint: Manual API approach since plugin doesn't support custom endpoints
-                        # Build the extraction request manually and call custom endpoint
-                        # Then convert response to LangExtract result format
+                        # Custom endpoint: Manual API approach since the plugin does not
+                        # support custom endpoints. Build the extraction request manually
+                        # and call the custom endpoint, then convert response to
+                        # LangExtract result format.
 
                         # Build user message content with text, prompt, and examples
                         user_content_parts = []
@@ -190,10 +195,12 @@ class ClinicalEntityExtractor:
                         # Add the actual text to extract from
                         user_content_parts.append(f"\n\nText to extract from:\n{text}")
 
-                        # Add instruction to return JSON format
-                        user_content_parts.append(
-                            "\n\nIMPORTANT: Return your response as a JSON object with an 'extractions' array. Each extraction should have 'class', 'text', and optionally 'attributes' fields."
+                        instruction_text = (
+                            "\n\nIMPORTANT: Return your response as a JSON object with an "
+                            "'extractions' array. Each extraction should have 'class', 'text', "
+                            "and optionally 'attributes' fields."
                         )
+                        user_content_parts.append(instruction_text)
 
                         user_message_content = "\n".join(user_content_parts)
 
@@ -206,7 +213,11 @@ class ClinicalEntityExtractor:
                             if prompt_description
                             else "Extract structured entities from the provided text."
                         )
-                        system_content = f"{base_system}\n\nReturn your response as valid JSON with an 'extractions' array. Each extraction must have 'class' and 'text' fields, and optionally 'attributes'."
+                        system_content = (
+                            f"{base_system}\n\nReturn your response as valid JSON with an "
+                            "'extractions' array. Each extraction must have 'class' and 'text' "
+                            "fields, and optionally 'attributes'."
+                        )
 
                         payload = {
                             "team_id": credentials.get("team_id"),
@@ -236,33 +247,9 @@ class ClinicalEntityExtractor:
                         # Invoke custom endpoint
                         response = self.llm_provider.invoke_custom_endpoint(payload)
 
-                        # Parse response and convert to LangExtract result format
                         parsed_response = self._parse_bedrock_response(response, entity_type)
 
-                        # Convert to LangExtract result object format
-                        # LangExtract expects result with .extractions attribute
-                        class LangExtractResult:
-                            """Wrapper to convert custom endpoint response to LangExtract result format."""
-
-                            def __init__(self, extractions_data):
-                                self.extractions = []
-                                # Handle both dict with 'extractions' key and direct list
-                                extractions_list = (
-                                    extractions_data.get("extractions", [])
-                                    if isinstance(extractions_data, dict)
-                                    else extractions_data
-                                )
-                                if isinstance(extractions_list, list):
-                                    for ext_dict in extractions_list:
-                                        if isinstance(ext_dict, dict):
-                                            ext_obj = lx.data.Extraction(
-                                                extraction_class=ext_dict.get("class", ""),
-                                                extraction_text=ext_dict.get("text", ""),
-                                                attributes=ext_dict.get("attributes", {}),
-                                            )
-                                            self.extractions.append(ext_obj)
-
-                        result = LangExtractResult(parsed_response)
+                        result = self._build_langextract_result(parsed_response)
                     else:
                         # Standard Bedrock: Use langextract-bedrock plugin
                         # Plugin auto-detects Bedrock models via model_id and uses boto3 credentials
@@ -271,7 +258,8 @@ class ClinicalEntityExtractor:
                             prompt_description=prompt_description,
                             examples=examples,
                             model_id=model_id,  # e.g., "anthropic.claude-sonnet-4-5-20250929-v1:0"
-                            # AWS credentials from boto3 default chain (env vars, ~/.aws/credentials, IAM role)
+                            # AWS credentials from boto3 default chain (env vars,
+                            # ~/.aws/credentials, IAM role)
                         )
 
                 else:
@@ -306,14 +294,15 @@ class ClinicalEntityExtractor:
                         e,
                     )
                     raise ExtractionError(f"Failed to extract {entity_type}: {e}") from e
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 # Catch any other unexpected exceptions and wrap them
                 # This handles cases where API libraries raise generic exceptions
                 is_last_attempt = attempt >= self.retry_attempts
 
                 if not is_last_attempt:
                     logger.warning(
-                        "Extraction attempt %d failed for %s (unexpected error): %s. Retrying in %ds...",
+                        "Extraction attempt %d failed for %s (unexpected error): %s. "
+                        "Retrying in %ds...",
                         attempt + 1,
                         entity_type,
                         e,
@@ -329,6 +318,27 @@ class ClinicalEntityExtractor:
                         e,
                     )
                     raise ExtractionError(f"Failed to extract {entity_type}: {e}") from e
+
+    def _build_langextract_result(self, extractions_data: dict | list) -> SimpleNamespace:
+        """Convert custom endpoint response into LangExtract-compatible result."""
+        result = SimpleNamespace(extractions=[])
+        extractions_list = (
+            extractions_data.get("extractions", [])
+            if isinstance(extractions_data, dict)
+            else extractions_data
+        )
+
+        if isinstance(extractions_list, list):
+            for extraction in extractions_list:
+                if isinstance(extraction, dict):
+                    result.extractions.append(
+                        lx.data.Extraction(
+                            extraction_class=extraction.get("class", ""),
+                            extraction_text=extraction.get("text", ""),
+                            attributes=extraction.get("attributes", {}),
+                        )
+                    )
+        return result
 
     def _parse_bedrock_response(self, response: dict, entity_type: str) -> dict:
         """Parse Bedrock custom endpoint response.
@@ -402,7 +412,7 @@ class ClinicalEntityExtractor:
                                 # Otherwise wrap the whole dict as a single extraction
                                 return {"extractions": [parsed]}
                             return parsed
-                        elif isinstance(parsed, list):
+                        if isinstance(parsed, list):
                             # If it's a list, assume it's a list of extractions
                             return {"extractions": parsed}
                     except json.JSONDecodeError as e:
@@ -423,7 +433,7 @@ class ClinicalEntityExtractor:
                                 parsed = json.loads(json_match.group(0))
                                 if isinstance(parsed, dict) and "extractions" in parsed:
                                     return parsed
-                            except:
+                            except json.JSONDecodeError:
                                 pass
                         # Return empty result structure
                         return {"extractions": []}
@@ -512,7 +522,8 @@ class ClinicalEntityExtractor:
         # Log warning if result format is unexpected
         if not entities:
             logger.warning(
-                "No extractions found in result. Result type: %s, Has extractions attr: %s, Is dict with extractions key: %s",
+                "No extractions found in result. Result type: %s, Has extractions attr: %s, "
+                "Is dict with extractions key: %s",
                 type(result).__name__,
                 hasattr(result, "extractions") if not isinstance(result, dict) else False,
                 isinstance(result, dict) and "extractions" in result,
@@ -533,7 +544,8 @@ class ClinicalEntityExtractor:
         examples = self._convert_to_langextract_examples(examples_config)
 
         prompt_description = """
-        Extract symptom information including symptom name, severity, duration, onset, and temporal pattern.
+        Extract symptom information including symptom name, severity, duration,
+        onset, and temporal pattern.
         Use 'symptom_group' attribute to link related information about the same symptom.
         Extract entities in the order they appear in the text.
         """
@@ -553,7 +565,8 @@ class ClinicalEntityExtractor:
         examples = self._convert_to_langextract_examples(examples_config)
 
         prompt_description = """
-        Extract medication information including medication name, dosage, route, frequency, duration, and indication.
+        Extract medication information including medication name, dosage, route,
+        frequency, duration, and indication.
         Use 'medication_group' attribute to group related information about the same medication.
         Extract entities in the order they appear in the text.
         """
@@ -573,7 +586,8 @@ class ClinicalEntityExtractor:
         examples = self._convert_to_langextract_examples(examples_config)
 
         prompt_description = """
-        Extract diagnosis information including diagnosis name, diagnostic certainty, and clinical features.
+        Extract diagnosis information including diagnosis name, diagnostic certainty,
+        and clinical features.
         Use 'diagnosis_group' attribute to link related information about the same diagnosis.
         Extract entities in the order they appear in the text.
         """
@@ -593,8 +607,8 @@ class ClinicalEntityExtractor:
         examples = self._convert_to_langextract_examples(examples_config)
 
         prompt_description = """
-        Extract vital signs measurements including temperature, blood pressure, heart rate, 
-        oxygen saturation, and respiratory rate.
+        Extract vital signs measurements including temperature, blood pressure,
+        heart rate, oxygen saturation, and respiratory rate.
         Extract entities in the order they appear in the text.
         """
 
@@ -613,7 +627,8 @@ class ClinicalEntityExtractor:
         examples = self._convert_to_langextract_examples(examples_config)
 
         prompt_description = """
-        Extract physical examination findings including examination type, anatomical site, findings, and severity.
+        Extract physical examination findings including examination type,
+        anatomical site, findings, and severity.
         Use 'exam_group' attribute to link related information about the same examination.
         Extract entities in the order they appear in the text.
         """
@@ -633,7 +648,8 @@ class ClinicalEntityExtractor:
         examples = self._convert_to_langextract_examples(examples_config)
 
         prompt_description = """
-        Extract red flags and warning signs including warning description, warning type, and severity.
+        Extract red flags and warning signs including warning description,
+        warning type, and severity.
         Use 'warning_group' attribute to link related information about the same warning.
         Extract entities in the order they appear in the text.
         """
@@ -653,7 +669,8 @@ class ClinicalEntityExtractor:
         examples = self._convert_to_langextract_examples(examples_config)
 
         prompt_description = """
-        Extract follow-up plan information including follow-up type, timing, condition, action, and priority.
+        Extract follow-up plan information including follow-up type, timing,
+        condition, action, and priority.
         Use 'followup_group' attribute to link related information about the same follow-up item.
         Extract entities in the order they appear in the text.
         """

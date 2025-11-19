@@ -4,8 +4,9 @@ This module maps extracted entities to PostgreSQL database schema format.
 """
 
 import logging
+import re
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
@@ -102,7 +103,7 @@ class DataMapper:
         symptom_groups = self._group_entities_by_attribute(symptoms, "symptom_group")
 
         rows = []
-        for group_id, group_entities in symptom_groups.items():
+        for _, group_entities in symptom_groups.items():
             symptom_data = {
                 "symptom_id": self._generate_uuid(),
                 "consultation_session_id": str(self.consultation_session_id),
@@ -148,8 +149,6 @@ class DataMapper:
         Returns:
             Duration in days or None
         """
-        import re
-
         # Convert text numbers to digits
         text_to_num = {
             "one": 1,
@@ -185,9 +184,9 @@ class DataMapper:
         # Determine unit
         if "week" in duration_text_lower:
             return number * 7
-        elif "month" in duration_text_lower:
+        if "month" in duration_text_lower:
             return number * 30
-        elif "day" in duration_text_lower:
+        if "day" in duration_text_lower:
             return number
 
         return number  # Default to days
@@ -201,17 +200,15 @@ class DataMapper:
         Returns:
             ISO 8601 date string or None
         """
-        from datetime import timedelta
-
         date_text_lower = date_text.lower()
 
         # Handle relative dates
         if "yesterday" in date_text_lower:
             date = datetime.now(UTC) - timedelta(days=1)
             return date.date().isoformat()
-        elif "today" in date_text_lower:
+        if "today" in date_text_lower:
             return datetime.now(UTC).date().isoformat()
-        elif "last week" in date_text_lower:
+        if "last week" in date_text_lower:
             date = datetime.now(UTC) - timedelta(days=7)
             return date.date().isoformat()
 
@@ -254,7 +251,7 @@ class DataMapper:
         med_groups = self._group_entities_by_attribute(medications, "medication_group")
 
         rows = []
-        for group_id, group_entities in med_groups.items():
+        for _, group_entities in med_groups.items():
             med_data = {
                 "prescription_id": self._generate_uuid(),
                 "consultation_session_id": str(self.consultation_session_id),
@@ -308,8 +305,6 @@ class DataMapper:
         Returns:
             Tuple of (value, unit)
         """
-        import re
-
         # Extract number
         match = re.search(r"(\d+(?:\.\d+)?)", dosage_text)
         if not match:
@@ -332,8 +327,6 @@ class DataMapper:
         Returns:
             Tuple of (value, unit)
         """
-        import re
-
         # Extract number
         match = re.search(r"(\d+)", duration_text)
         if not match:
@@ -398,7 +391,7 @@ class DataMapper:
         diagnoses_rows = []
         assessment_rows = []
 
-        for group_id, group_entities in diag_groups.items():
+        for _, group_entities in diag_groups.items():
             diagnosis_name = None
             certainty = None
             clinical_features = None
@@ -460,11 +453,11 @@ class DataMapper:
 
         if "confirm" in certainty_lower or "definite" in certainty_lower:
             return "confirmed"
-        elif "probable" in certainty_lower or "likely" in certainty_lower:
+        if "probable" in certainty_lower or "likely" in certainty_lower:
             return "probable"
-        elif "suspect" in certainty_lower or "possible" in certainty_lower:
+        if "suspect" in certainty_lower or "possible" in certainty_lower:
             return "suspected"
-        elif "rule" in certainty_lower and "out" in certainty_lower:
+        if "rule" in certainty_lower and "out" in certainty_lower:
             return "ruled_out"
 
         return "suspected"  # Default
@@ -533,8 +526,6 @@ class DataMapper:
         Returns:
             Temperature in Celsius
         """
-        import re
-
         match = re.search(r"(\d+(?:\.\d+)?)", temp_text)
         if not match:
             return None
@@ -556,8 +547,6 @@ class DataMapper:
         Returns:
             Numeric value or None
         """
-        import re
-
         match = re.search(r"(\d+)", text)
         if match:
             return int(match.group(1))
@@ -590,7 +579,7 @@ class DataMapper:
         exam_groups = self._group_entities_by_attribute(exams, "exam_group")
 
         rows = []
-        for group_id, group_entities in exam_groups.items():
+        for _, group_entities in exam_groups.items():
             exam_data = {
                 "exam_finding_id": self._generate_uuid(),
                 "consultation_session_id": str(self.consultation_session_id),
@@ -646,7 +635,7 @@ class DataMapper:
         flag_groups = self._group_entities_by_attribute(flags, "warning_group")
 
         rows = []
-        for group_id, group_entities in flag_groups.items():
+        for _, group_entities in flag_groups.items():
             flag_data = {
                 "red_flag_id": self._generate_uuid(),
                 "consultation_session_id": str(self.consultation_session_id),
@@ -701,7 +690,7 @@ class DataMapper:
         followup_groups = self._group_entities_by_attribute(plans, "followup_group")
 
         rows = []
-        for group_id, group_entities in followup_groups.items():
+        for _, group_entities in followup_groups.items():
             followup_data = {
                 "follow_up_id": self._generate_uuid(),
                 "consultation_session_id": str(self.consultation_session_id),

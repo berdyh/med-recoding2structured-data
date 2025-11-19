@@ -3,6 +3,8 @@
 This module orchestrates the extraction pipeline from input to CSV output.
 """
 
+# pylint: disable=too-many-return-statements,too-many-branches,too-many-statements,too-many-locals
+
 import argparse
 import logging
 import sys
@@ -149,18 +151,18 @@ def _get_patient_doctor_ids(args):
         logger.info("Generated test patient ID: %s", patient_id)
         logger.info("Generated test doctor ID: %s", doctor_id)
         return patient_id, doctor_id
-    else:
-        if not args.patient_id or not args.doctor_id:
-            logger.error("Patient ID and Doctor ID are required when not using test data")
-            return None, None
 
-        try:
-            patient_id = uuid.UUID(args.patient_id)
-            doctor_id = uuid.UUID(args.doctor_id)
-            return patient_id, doctor_id
-        except ValueError as e:
-            logger.error("Invalid UUID format: %s", e)
-            return None, None
+    if not args.patient_id or not args.doctor_id:
+        logger.error("Patient ID and Doctor ID are required when not using test data")
+        return None, None
+
+    try:
+        patient_id = uuid.UUID(args.patient_id)
+        doctor_id = uuid.UUID(args.doctor_id)
+        return patient_id, doctor_id
+    except ValueError as e:
+        logger.error("Invalid UUID format: %s", e)
+        return None, None
 
 
 def _map_all_entities(mapper, extracted_entities, transcript):
@@ -264,7 +266,7 @@ def main():
         logger.info("Validating extracted data...")
         try:
             validator = Validator()
-            is_valid, validation_errors = validator.validate_all(extracted_entities)
+            _is_valid, validation_errors = validator.validate_all(extracted_entities)
             if validation_errors:
                 logger.warning("Found %d validation warnings:", len(validation_errors))
                 for error in validation_errors[:10]:

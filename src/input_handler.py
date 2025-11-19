@@ -9,8 +9,6 @@ from pathlib import Path
 class InputError(Exception):
     """Raised when input file cannot be read or is invalid."""
 
-    pass
-
 
 class InputHandler:
     """Handles reading and validating consultation transcript files."""

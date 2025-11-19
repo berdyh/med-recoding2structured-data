@@ -4,7 +4,6 @@ This module manages connections to different LLM providers (Gemini and AWS Bedro
 and provides a unified interface for credential validation and provider selection.
 """
 
-
 import requests
 
 # Optional imports for Bedrock support
@@ -15,8 +14,13 @@ try:
     BOTO3_AVAILABLE = True
 except ImportError:
     boto3 = None
-    ClientError = Exception
-    NoCredentialsError = Exception
+
+    class ClientError(Exception):
+        """Fallback ClientError when botocore is unavailable."""
+
+    class NoCredentialsError(Exception):
+        """Fallback NoCredentialsError when botocore is unavailable."""
+
     BOTO3_AVAILABLE = False
 
 
@@ -78,56 +82,56 @@ class LLMProviderManager:
             LLMProviderError: If credentials are not configured
         """
         if self.provider == "gemini":
-            api_key = self.config.get("gemini", {}).get("api_key")
-            if not api_key:
-                raise LLMProviderError(
-                    "Gemini API key not configured. Set LANGEXTRACT_API_KEY environment variable."
-                )
-
-            return {
-                "api_key": api_key,
-                "model": self.config.get("gemini", {}).get("model", "gemini-2.5-pro"),
-            }
-
-        elif self.provider == "bedrock":
-            bedrock_config = self.config.get("bedrock", {})
-            region = bedrock_config.get("region", "us-east-1")
-            model_id = bedrock_config.get("model_id", "anthropic.claude-sonnet-4-5-20250929-v1:0")
-
-            credentials = {"region": region, "model_id": model_id}
-
-            # Check if using custom API Gateway endpoint
-            if bedrock_config.get("use_custom_endpoint") or bedrock_config.get("api_endpoint"):
-                credentials["use_custom_endpoint"] = True
-                credentials["api_endpoint"] = bedrock_config.get("api_endpoint")
-                credentials["api_key"] = bedrock_config.get("api_key")
-                credentials["api_token"] = bedrock_config.get(
-                    "api_key"
-                )  # api_token is same as api_key
-                credentials["team_id"] = bedrock_config.get("team_id")
-
-                if not credentials["api_endpoint"]:
-                    raise LLMProviderError(
-                        "Bedrock API endpoint not configured. "
-                        "Set BEDROCK_API_ENDPOINT environment variable."
-                    )
-                if not credentials["api_key"]:
-                    raise LLMProviderError(
-                        "Bedrock API key not configured. Set BEDROCK_API_KEY environment variable."
-                    )
-            else:
-                # Standard boto3 credentials
-                credentials["use_custom_endpoint"] = False
-
-                # Add explicit AWS credentials if provided
-                if "aws_access_key_id" in bedrock_config:
-                    credentials["aws_access_key_id"] = bedrock_config["aws_access_key_id"]
-                if "aws_secret_access_key" in bedrock_config:
-                    credentials["aws_secret_access_key"] = bedrock_config["aws_secret_access_key"]
-
-            return credentials
+            return self._get_gemini_credentials()
+        if self.provider == "bedrock":
+            return self._get_bedrock_credentials()
 
         raise LLMProviderError(f"Unknown provider: {self.provider}")
+
+    def _get_gemini_credentials(self) -> dict:
+        """Return Gemini credentials."""
+        api_key = self.config.get("gemini", {}).get("api_key")
+        if not api_key:
+            raise LLMProviderError(
+                "Gemini API key not configured. Set LANGEXTRACT_API_KEY environment variable."
+            )
+
+        return {
+            "api_key": api_key,
+            "model": self.config.get("gemini", {}).get("model", "gemini-2.5-pro"),
+        }
+
+    def _get_bedrock_credentials(self) -> dict:
+        """Return Bedrock credentials."""
+        bedrock_config = self.config.get("bedrock", {})
+        credentials = {
+            "region": bedrock_config.get("region", "us-east-1"),
+            "model_id": bedrock_config.get("model_id", "anthropic.claude-sonnet-4-5-20250929-v1:0"),
+        }
+
+        if bedrock_config.get("use_custom_endpoint") or bedrock_config.get("api_endpoint"):
+            credentials["use_custom_endpoint"] = True
+            credentials["api_endpoint"] = bedrock_config.get("api_endpoint")
+            credentials["api_key"] = bedrock_config.get("api_key")
+            credentials["api_token"] = bedrock_config.get("api_key")
+            credentials["team_id"] = bedrock_config.get("team_id")
+
+            if not credentials["api_endpoint"]:
+                raise LLMProviderError(
+                    "Bedrock API endpoint not configured. Set BEDROCK_API_ENDPOINT."
+                )
+            if not credentials["api_key"]:
+                raise LLMProviderError(
+                    "Bedrock API key not configured. Set BEDROCK_API_KEY environment variable."
+                )
+            return credentials
+
+        credentials["use_custom_endpoint"] = False
+        if "aws_access_key_id" in bedrock_config:
+            credentials["aws_access_key_id"] = bedrock_config["aws_access_key_id"]
+        if "aws_secret_access_key" in bedrock_config:
+            credentials["aws_secret_access_key"] = bedrock_config["aws_secret_access_key"]
+        return credentials
 
     def validate_credentials(self) -> bool:
         """Verify credentials are valid for the active provider.
@@ -140,7 +144,7 @@ class LLMProviderManager:
         """
         if self.provider == "gemini":
             return self._validate_gemini_credentials()
-        elif self.provider == "bedrock":
+        if self.provider == "bedrock":
             return self._validate_bedrock_credentials()
 
         return False
@@ -196,7 +200,7 @@ class LLMProviderManager:
                     raise LLMProviderError(f"Invalid API endpoint URL: {api_endpoint}")
 
                 return True
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 raise LLMProviderError(f"Failed to validate custom Bedrock endpoint: {e}") from e
 
         else:
@@ -253,7 +257,8 @@ class LLMProviderManager:
         # Check if using custom endpoint
         if credentials.get("use_custom_endpoint"):
             raise LLMProviderError(
-                "Custom endpoint configured. Use invoke_custom_endpoint() instead of get_bedrock_client()"
+                "Custom endpoint configured. Use invoke_custom_endpoint() instead of "
+                "get_bedrock_client()."
             )
 
         if not self._bedrock_client:
@@ -303,7 +308,7 @@ class LLMProviderManager:
                 try:
                     error_body = response.json()
                     error_detail += f", Response: {error_body}"
-                except:
+                except ValueError:
                     error_detail += f", Response text: {response.text[:500]}"
                 raise requests.exceptions.HTTPError(error_detail, response=response)
 
@@ -317,6 +322,6 @@ class LLMProviderManager:
                 try:
                     error_body = e.response.json()
                     error_msg += f" | Response: {error_body}"
-                except:
+                except ValueError:
                     error_msg += f" | Response text: {e.response.text[:500]}"
             raise LLMProviderError(error_msg) from e

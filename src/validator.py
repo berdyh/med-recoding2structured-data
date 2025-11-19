@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 class ValidationError(Exception):
     """Raised when validation fails critically."""
 
-    pass
-
 
 class Validator:
     """Validates extracted clinical data against business rules."""
@@ -159,7 +157,7 @@ class Validator:
         digits = [int(d) for d in nhs_number]
         weights = [10, 9, 8, 7, 6, 5, 4, 3, 2]
 
-        total = sum(d * w for d, w in zip(digits[:9], weights))
+        total = sum(d * w for d, w in zip(digits[:9], weights, strict=True))
         remainder = total % 11
         checksum = 11 - remainder
 
@@ -321,8 +319,6 @@ class Validator:
         if dosage is not None:
             # If dosage is a string, try to extract numeric value
             if isinstance(dosage, str):
-                import re
-
                 match = re.search(r"(\d+(?:\.\d+)?)", dosage)
                 if match:
                     dosage = float(match.group(1))
@@ -413,9 +409,8 @@ class Validator:
                 if o2 < 0 or o2 > 100:
                     errors.append(f"Oxygen saturation out of range: {o2}%")
             except (ValueError, TypeError):
-                errors.append(
-                    f"Invalid oxygen saturation format: {vital_signs.get('oxygen_saturation_percent')}"
-                )
+                value = vital_signs.get("oxygen_saturation_percent")
+                errors.append(f"Invalid oxygen saturation format: {value}")
 
         return len(errors) == 0, errors
 
@@ -456,7 +451,7 @@ class Validator:
 
         # Log warnings
         for error in all_errors:
-            logger.warning(f"Validation warning: {error}")
+            logger.warning("Validation warning: %s", error)
 
         # Return True even if there are warnings (non-blocking validation)
         return True, all_errors

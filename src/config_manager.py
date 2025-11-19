@@ -23,8 +23,6 @@ except ImportError:
 class ConfigurationError(Exception):
     """Raised when configuration is invalid or missing required values."""
 
-    pass
-
 
 class ConfigManager:
     """Manages application configuration from multiple sources."""
@@ -75,7 +73,7 @@ class ConfigManager:
 
         # Load from file if provided
         if config_file and Path(config_file).exists():
-            with open(config_file) as f:
+            with open(config_file, encoding="utf-8") as f:
                 file_config = yaml.safe_load(f)
                 if file_config:
                     config = self._deep_merge(config, file_config)
@@ -102,71 +100,88 @@ class ConfigManager:
 
     def _apply_env_overrides(self):
         """Apply environment variable overrides to configuration."""
-        # LLM provider settings
+        self._apply_provider_overrides()
+        self._apply_bedrock_overrides()
+        self._apply_extraction_overrides()
+        self._apply_output_overrides()
+        self._apply_logging_overrides()
+
+    def _apply_provider_overrides(self):
+        """Override provider-specific settings from env."""
         if os.getenv("AWS_BEDROCK_ENABLED", "").lower() == "true":
             self.config["llm"]["provider"] = "bedrock"
 
-        if os.getenv("LANGEXTRACT_API_KEY"):
-            self.config["llm"]["gemini"]["api_key"] = os.getenv("LANGEXTRACT_API_KEY")
+        gemini_api_key = os.getenv("LANGEXTRACT_API_KEY")
+        if gemini_api_key:
+            self.config["llm"]["gemini"]["api_key"] = gemini_api_key
 
-        # AWS Bedrock - Custom API Gateway endpoint
-        if os.getenv("BEDROCK_API_ENDPOINT"):
-            if "bedrock" not in self.config["llm"]:
-                self.config["llm"]["bedrock"] = {}
-            self.config["llm"]["bedrock"]["api_endpoint"] = os.getenv("BEDROCK_API_ENDPOINT")
-            self.config["llm"]["bedrock"]["use_custom_endpoint"] = True
-
-        if os.getenv("BEDROCK_API_KEY"):
-            if "bedrock" not in self.config["llm"]:
-                self.config["llm"]["bedrock"] = {}
-            self.config["llm"]["bedrock"]["api_key"] = os.getenv("BEDROCK_API_KEY")
-
-        # Custom endpoint specific fields
-        if os.getenv("BEDROCK_TEAM_ID"):
-            if "bedrock" not in self.config["llm"]:
-                self.config["llm"]["bedrock"] = {}
-            self.config["llm"]["bedrock"]["team_id"] = os.getenv("BEDROCK_TEAM_ID")
-
-        # AWS Bedrock - Standard boto3 credentials (fallback)
-        if os.getenv("AWS_ACCESS_KEY_ID"):
-            if "bedrock" not in self.config["llm"]:
-                self.config["llm"]["bedrock"] = {}
-            self.config["llm"]["bedrock"]["aws_access_key_id"] = os.getenv("AWS_ACCESS_KEY_ID")
-
-        if os.getenv("AWS_SECRET_ACCESS_KEY"):
-            if "bedrock" not in self.config["llm"]:
-                self.config["llm"]["bedrock"] = {}
-            self.config["llm"]["bedrock"]["aws_secret_access_key"] = os.getenv(
-                "AWS_SECRET_ACCESS_KEY"
+        model_id = os.getenv("MODEL_ID")
+        if model_id:
+            provider = self.config["llm"]["provider"]
+            target_key = "bedrock" if provider == "bedrock" else "gemini"
+            self.config["llm"][target_key]["model" if target_key == "gemini" else "model_id"] = (
+                model_id
             )
 
-        if os.getenv("AWS_REGION"):
-            if "bedrock" not in self.config["llm"]:
-                self.config["llm"]["bedrock"] = {}
-            self.config["llm"]["bedrock"]["region"] = os.getenv("AWS_REGION")
+    def _apply_bedrock_overrides(self):
+        """Apply Bedrock-specific overrides."""
+        bedrock_config = self._ensure_bedrock_config()
 
-        if os.getenv("MODEL_ID"):
-            provider = self.config["llm"]["provider"]
-            if provider == "bedrock":
-                self.config["llm"]["bedrock"]["model_id"] = os.getenv("MODEL_ID")
-            else:
-                self.config["llm"]["gemini"]["model"] = os.getenv("MODEL_ID")
+        api_endpoint = os.getenv("BEDROCK_API_ENDPOINT")
+        if api_endpoint:
+            bedrock_config["api_endpoint"] = api_endpoint
+            bedrock_config["use_custom_endpoint"] = True
 
-        # Extraction settings
-        if os.getenv("EXTRACTION_CONFIDENCE_THRESHOLD"):
-            try:
-                threshold = float(os.getenv("EXTRACTION_CONFIDENCE_THRESHOLD"))
-                self.config["extraction"]["confidence_threshold"] = threshold
-            except ValueError:
-                pass
+        api_key = os.getenv("BEDROCK_API_KEY")
+        if api_key:
+            bedrock_config["api_key"] = api_key
 
-        # Output settings
-        if os.getenv("OUTPUT_DIR"):
-            self.config["output"]["directory"] = os.getenv("OUTPUT_DIR")
+        team_id = os.getenv("BEDROCK_TEAM_ID")
+        if team_id:
+            bedrock_config["team_id"] = team_id
 
-        # Logging settings
-        if os.getenv("LOG_LEVEL"):
-            self.config["logging"]["level"] = os.getenv("LOG_LEVEL")
+        aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
+        if aws_access_key:
+            bedrock_config["aws_access_key_id"] = aws_access_key
+
+        aws_secret = os.getenv("AWS_SECRET_ACCESS_KEY")
+        if aws_secret:
+            bedrock_config["aws_secret_access_key"] = aws_secret
+
+        aws_region = os.getenv("AWS_REGION")
+        if aws_region:
+            bedrock_config["region"] = aws_region
+
+    def _apply_extraction_overrides(self):
+        """Override extraction-related settings."""
+        threshold_env = os.getenv("EXTRACTION_CONFIDENCE_THRESHOLD")
+        if not threshold_env:
+            return
+        try:
+            threshold = float(threshold_env)
+        except ValueError:
+            return
+        self.config["extraction"]["confidence_threshold"] = threshold
+
+    def _apply_output_overrides(self):
+        """Override output settings."""
+        output_dir = os.getenv("OUTPUT_DIR")
+        if output_dir:
+            self.config["output"]["directory"] = output_dir
+
+    def _apply_logging_overrides(self):
+        """Override logging settings."""
+        log_level = os.getenv("LOG_LEVEL")
+        if log_level:
+            self.config["logging"]["level"] = log_level
+
+    def _ensure_bedrock_config(self) -> dict:
+        """Ensure bedrock config dictionary exists."""
+        bedrock_config = self.config["llm"].get("bedrock")
+        if bedrock_config is None:
+            bedrock_config = {}
+            self.config["llm"]["bedrock"] = bedrock_config
+        return bedrock_config
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value by dot-notation key.

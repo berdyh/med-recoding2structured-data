@@ -37,7 +37,7 @@ class CSVExporter:
             Path to exported CSV file
         """
         if df.empty:
-            logger.info(f"Table {table_name} is empty, creating empty CSV with headers")
+            logger.info("Table %s is empty, creating empty CSV with headers", table_name)
 
         # Serialize JSONB columns
         df = self._serialize_jsonb_columns(df)
@@ -56,7 +56,7 @@ class CSVExporter:
             doublequote=True,
         )
 
-        logger.info(f"Exported {len(df)} rows to {filepath}")
+        logger.info("Exported %d rows to %s", len(df), filepath)
         self.exported_files.append({"table": table_name, "file": filename, "row_count": len(df)})
 
         return str(filepath)
@@ -120,7 +120,7 @@ class CSVExporter:
             filepath = self.export_table(df, table_name)
             file_paths.append(filepath)
 
-        logger.info(f"Exported {len(file_paths)} CSV files to {self.output_dir}")
+        logger.info("Exported %d CSV files to %s", len(file_paths), self.output_dir)
         return file_paths
 
     def create_manifest(
@@ -149,5 +149,5 @@ class CSVExporter:
         with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2, ensure_ascii=False)
 
-        logger.info(f"Created manifest file: {manifest_path}")
+        logger.info("Created manifest file: %s", manifest_path)
         return str(manifest_path)

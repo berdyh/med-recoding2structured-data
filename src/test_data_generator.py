@@ -232,7 +232,7 @@ class TestDataGenerator:
         """
         # Multiply each digit by its weight (11 - position)
         weights = [10, 9, 8, 7, 6, 5, 4, 3, 2]
-        total = sum(d * w for d, w in zip(digits, weights))
+        total = sum(d * w for d, w in zip(digits, weights, strict=False))
 
         # Calculate checksum
         remainder = total % 11
