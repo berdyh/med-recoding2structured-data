@@ -39,7 +39,23 @@ This installs:
 - `pytest-mock` - Mocking utilities
 - All application dependencies
 
-### 2. Set Up Environment
+### 2. Install Ruff (Formatter + Quick Fixes)
+
+We rely on [Ruff](https://docs.astral.sh/ruff/) for formatting and the first pass of lint fixes. It uses the `pyproject.toml` config (line length 100, Python 3.12 target).
+
+```bash
+pip install ruff
+
+# Reformat code automatically
+ruff format .
+
+# Auto-fix simple lint issues (imports, whitespace, etc.)
+ruff check . --fix
+```
+
+> Run Ruff before `pylint` so most style nits are resolved automatically.
+
+### 3. Set Up Environment
 
 Create a `.env` file (optional for tests, but required for real extraction):
 

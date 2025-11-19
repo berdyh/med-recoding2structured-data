@@ -1,0 +1,23 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "B",
+  "UP",
+  "I",
+  "W",
+  "C4",
+]
+ignore = [
+  # Allow accessing protected members in tests when mocking internals
+  "SLOT000",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
