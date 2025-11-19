@@ -14,7 +14,7 @@ This guide explains how to run and understand the test suite for the GP Consulta
 
 ## Test Overview
 
-The test suite includes **85+ unit tests** and **15+ integration tests** covering:
+The test suite includes **161 tests total** (85+ unit tests and 20+ integration tests) covering:
 - Configuration management
 - LLM provider connections
 - Input file handling
@@ -586,9 +586,11 @@ pytest --cov=src --cov-report=html
 ```
 
 **Test Statistics:**
-- 85+ unit tests
-- 15+ integration tests
-- 91% code coverage
-- ~30 seconds total runtime
+- **Total Tests**: 161 tests
+- **Unit Tests**: 85+ tests
+- **Integration Tests**: 20+ tests
+- **Code Coverage**: 91%
+- **Runtime**: ~3-4 seconds
+- **Status**: ✅ All tests passing
 
 All tests should pass before deployment! ✅

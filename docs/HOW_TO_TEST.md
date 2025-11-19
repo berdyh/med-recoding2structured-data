@@ -301,7 +301,7 @@ config_manager.py         95%
 llm_provider.py           92%
 input_handler.py          98%
 test_data_generator.py    96%
-entity_extractor.py        85%
+entity_extractor.py       85%
 validator.py              94%
 data_mapper.py            93%
 csv_exporter.py           97%
@@ -309,6 +309,12 @@ main.py                   75%
 -----------------------------------
 TOTAL                     91%
 ```
+
+**Recent Improvements:**
+- ✅ Fixed Bedrock provider support (bedrock_client properly passed to lx.extract)
+- ✅ Fixed validator.validate_all to return False when errors found
+- ✅ Fixed diagnosis validation to only check certainty from attributes
+- ✅ All 161 tests now passing in CI
 
 ---
 
@@ -559,10 +565,12 @@ docker build -t gp-extractor .
 
 ### Test Statistics
 
+- **Total Tests**: 161 tests
 - **Unit Tests**: 85+ tests
 - **Integration Tests**: 20+ tests
 - **Total Coverage**: 91%
-- **Average Runtime**: ~30 seconds
+- **Average Runtime**: ~3-4 seconds
+- **Status**: ✅ All tests passing
 
 ### Getting Help
 

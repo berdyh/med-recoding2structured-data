@@ -105,18 +105,25 @@ manifest = exporter.create_manifest(session_id, total_entities, processing_time)
 - Extract symptoms, medications, diagnoses, etc.
 - Handle API retries and errors
 - Group related entities using attributes
+- Support both Gemini and AWS Bedrock providers
+- Handle standard Bedrock (boto3) and custom API Gateway endpoints
 
 **Usage:**
 ```python
 from entity_extractor import ClinicalEntityExtractor
 
-extractor = ClinicalEntityExtractor(llm_provider)
+extractor = ClinicalEntityExtractor(llm_provider, few_shot_config_path)
 entities = extractor.extract_all(transcript)
 
 # Extract specific entity types
 symptoms = extractor.extract_symptoms(transcript)
 medications = extractor.extract_medications(transcript)
 ```
+
+**Provider Support:**
+- **Gemini**: Uses LangExtract with API key authentication
+- **Bedrock (Standard)**: Uses boto3 client with AWS credentials
+- **Bedrock (Custom Endpoint)**: Uses custom API Gateway with manual request handling
 
 **Entity Types:**
 - `symptoms`: Patient-reported symptoms with severity and duration
@@ -175,7 +182,8 @@ diagnoses_df, assessment_df = mapper.map_diagnoses(extracted_entities['diagnoses
 - Validate diagnostic certainty
 - Validate dosages and measurements
 - Validate dates and timestamps
-- Log validation warnings (non-blocking)
+- Aggregate validation errors across all entity types
+- Return validation status (True/False) with error list
 
 **Usage:**
 ```python
@@ -183,6 +191,11 @@ from validator import Validator
 
 validator = Validator()
 is_valid, errors = validator.validate_all(extracted_entities)
+
+# Returns False if any validation errors found
+if not is_valid:
+    for error in errors:
+        print(f"Validation error: {error}")
 
 # Validate specific fields
 is_valid_severity = validator.validate_severity('moderate')
@@ -196,6 +209,11 @@ is_valid_dosage = validator.validate_dosage(100.0)
 - Dosages: Must be positive numbers
 - Dates: ISO 8601 format, not in future
 - NHS numbers: 10 digits with valid checksum
+
+**Important Notes:**
+- `validate_all()` returns `False` when any validation errors are found
+- Diagnosis validation only checks `certainty` from attributes, not from text field
+- Non-diagnosis entities (e.g., "certainty" entities) are skipped during diagnosis validation
 
 ### Utility Modules
 

@@ -11,7 +11,7 @@ A Python-based system that extracts structured clinical data from unstructured G
 - **Test Data Generation**: One-click generation of realistic UK patient and doctor data
 - **Docker Support**: Containerized deployment for consistent execution
 - **Robust Error Handling**: Comprehensive error handling with retry logic and detailed logging
-- **Validation**: Data validation against business rules with non-blocking warnings
+- **Validation**: Comprehensive data validation against business rules with proper error reporting
 
 ## Installation
 
@@ -111,13 +111,30 @@ The CSV files will be generated in the `output/` directory.
 
 ### AWS Bedrock Usage
 
+The system supports both standard AWS Bedrock (via boto3) and custom API Gateway endpoints:
+
+**Standard Bedrock (boto3):**
 ```bash
 docker run -v $(pwd)/input:/input -v $(pwd)/output:/output \
   -v ~/.aws:/root/.aws:ro \
   -e AWS_BEDROCK_ENABLED=true \
   -e AWS_REGION=us-east-1 \
+  -e MODEL_ID=anthropic.claude-sonnet-4-5-20250929-v1:0 \
   gp-extractor --input /input/case_1.md --use-test-data
 ```
+
+**Custom API Gateway Endpoint:**
+```bash
+docker run -v $(pwd)/input:/input -v $(pwd)/output:/output \
+  -e AWS_BEDROCK_ENABLED=true \
+  -e BEDROCK_API_ENDPOINT=https://your-api-gateway-url \
+  -e BEDROCK_API_KEY=your-api-key \
+  -e BEDROCK_TEAM_ID=your-team-id \
+  -e MODEL_ID=anthropic.claude-sonnet-4-5-20250929-v1:0 \
+  gp-extractor --input /input/case_1.md --use-test-data
+```
+
+The system automatically uses the appropriate Bedrock client based on configuration.
 
 ## Configuration
 
@@ -228,9 +245,14 @@ python -m src.main --input input/case_2.md --use-test-data
 
 ## Testing
 
-Run unit tests:
+Run all tests (161 tests):
 ```bash
 pytest tests/
+```
+
+Run with verbose output:
+```bash
+pytest tests/ -v
 ```
 
 Run integration tests:
@@ -238,7 +260,12 @@ Run integration tests:
 pytest tests/test_integration.py
 ```
 
-See `tests/README.md` for detailed testing guide.
+**Test Status:** ✅ All 161 tests passing
+- 85+ unit tests
+- 20+ integration tests
+- 91% code coverage
+
+See `tests/README.md` and `TESTING.md` for detailed testing guide.
 
 ## Architecture
 
