@@ -1,5 +1,5 @@
 [MASTER]
-init-hook='import sys; from pathlib import Path; sys.path.append(str(Path(__file__).resolve().parent / "src"))'
+init-hook='import sys; import os; from pathlib import Path; src_path = Path(os.getcwd()) / "src"; sys.path.insert(0, str(src_path))'
 max-line-length=120
 
 [MESSAGES CONTROL]
