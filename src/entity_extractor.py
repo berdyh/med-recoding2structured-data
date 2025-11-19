@@ -5,6 +5,8 @@ using LangExtract with few-shot learning examples.
 """
 
 import yaml
+import json
+import re
 import time
 from typing import List, Dict, Optional
 from pathlib import Path
@@ -145,13 +147,15 @@ class ClinicalEntityExtractor:
                 elif provider == 'bedrock':
                     model_id = credentials.get('model_id')
                     
-                    # Check if using custom endpoint
+                    # Use langextract-bedrock plugin for standard Bedrock
+                    # For custom endpoints, use manual API approach and convert to LangExtract format
+                    
                     if credentials.get('use_custom_endpoint'):
-                        # Use custom API Gateway endpoint
-                        # Prepare payload for custom endpoint
-                        # The endpoint expects: team_id, api_token, model, messages array
+                        # Custom endpoint: Manual API approach since plugin doesn't support custom endpoints
+                        # Build the extraction request manually and call custom endpoint
+                        # Then convert response to LangExtract result format
                         
-                        # Build the user message content with text, prompt, and examples
+                        # Build user message content with text, prompt, and examples
                         user_content_parts = []
                         
                         # Add the prompt description
@@ -183,24 +187,28 @@ class ClinicalEntityExtractor:
                         # Add the actual text to extract from
                         user_content_parts.append(f"\n\nText to extract from:\n{text}")
                         
+                        # Add instruction to return JSON format
+                        user_content_parts.append("\n\nIMPORTANT: Return your response as a JSON object with an 'extractions' array. Each extraction should have 'class', 'text', and optionally 'attributes' fields.")
+                        
                         user_message_content = "\n".join(user_content_parts)
                         
-                        # Construct messages array in chat format
+                        # Construct messages array
                         messages = [
-                            {
-                                'role': 'system',
-                                'content': prompt_description.strip() if prompt_description else 'Extract structured entities from the provided text.'
-                            },
                             {
                                 'role': 'user',
                                 'content': user_message_content
                             }
                         ]
                         
+                        # Extract system content for top-level parameter
+                        base_system = prompt_description.strip() if prompt_description else 'Extract structured entities from the provided text.'
+                        system_content = f"{base_system}\n\nReturn your response as valid JSON with an 'extractions' array. Each extraction must have 'class' and 'text' fields, and optionally 'attributes'."
+                        
                         payload = {
                             'team_id': credentials.get('team_id'),
                             'api_token': credentials.get('api_token') or credentials.get('api_key'),
-                            'model': model_id,  # Use 'model' not 'model_id' for this endpoint
+                            'model': model_id,
+                            'system': system_content,
                             'messages': messages
                         }
                         
@@ -224,19 +232,37 @@ class ClinicalEntityExtractor:
                         # Invoke custom endpoint
                         response = self.llm_provider.invoke_custom_endpoint(payload)
                         
-                        # Parse response - assuming it returns LangExtract-compatible format
-                        result = response
-                    else:
-                        # Standard boto3 Bedrock client
-                        bedrock_client = self.llm_provider.get_bedrock_client()
+                        # Parse response and convert to LangExtract result format
+                        parsed_response = self._parse_bedrock_response(response, entity_type)
                         
-                        # LangExtract supports Bedrock through custom client
+                        # Convert to LangExtract result object format
+                        # LangExtract expects result with .extractions attribute
+                        class LangExtractResult:
+                            """Wrapper to convert custom endpoint response to LangExtract result format."""
+                            def __init__(self, extractions_data):
+                                self.extractions = []
+                                # Handle both dict with 'extractions' key and direct list
+                                extractions_list = extractions_data.get('extractions', []) if isinstance(extractions_data, dict) else extractions_data
+                                if isinstance(extractions_list, list):
+                                    for ext_dict in extractions_list:
+                                        if isinstance(ext_dict, dict):
+                                            ext_obj = lx.data.Extraction(
+                                                extraction_class=ext_dict.get('class', ''),
+                                                extraction_text=ext_dict.get('text', ''),
+                                                attributes=ext_dict.get('attributes', {})
+                                            )
+                                            self.extractions.append(ext_obj)
+                        
+                        result = LangExtractResult(parsed_response)
+                    else:
+                        # Standard Bedrock: Use langextract-bedrock plugin
+                        # Plugin auto-detects Bedrock models via model_id and uses boto3 credentials
                         result = lx.extract(
                             text_or_documents=text,
                             prompt_description=prompt_description,
                             examples=examples,
-                            bedrock_client=bedrock_client,
-                            model_id=model_id
+                            model_id=model_id  # e.g., "anthropic.claude-sonnet-4-5-20250929-v1:0"
+                            # AWS credentials from boto3 default chain (env vars, ~/.aws/credentials, IAM role)
                         )
                 
                 else:
@@ -278,6 +304,122 @@ class ClinicalEntityExtractor:
                 else:
                     logger.error('Extraction failed for %s after %d attempts (unexpected error): %s', entity_type, self.retry_attempts + 1, e)
                     raise ExtractionError(f"Failed to extract {entity_type}: {e}") from e
+    
+    def _parse_bedrock_response(self, response: Dict, entity_type: str) -> Dict:
+        """Parse Bedrock custom endpoint response.
+        
+        Claude Messages API returns responses in this format:
+        {
+            "content": [
+                {"type": "text", "text": "..."}
+            ],
+            ...
+        }
+        
+        The text content may be JSON that needs to be parsed.
+        
+        Args:
+            response: Raw response from Bedrock endpoint
+            entity_type: Type of entity being extracted (for logging)
+            
+        Returns:
+            Parsed result in LangExtract-compatible format
+        """
+        # Log the response structure for debugging (first 500 chars to avoid log spam)
+        logger.info('Bedrock response structure for %s: keys=%s, type=%s', 
+                   entity_type,
+                   list(response.keys()) if isinstance(response, dict) else 'N/A',
+                   type(response).__name__)
+        if isinstance(response, dict):
+            logger.debug('Full Bedrock response for %s: %s', entity_type, json.dumps(response, indent=2)[:1000])
+        
+        # Check if response has content blocks (Claude Messages API format)
+        if isinstance(response, dict) and 'content' in response:
+            content_blocks = response['content']
+            if isinstance(content_blocks, list) and len(content_blocks) > 0:
+                # Extract text from content blocks
+                text_content = ""
+                for block in content_blocks:
+                    if isinstance(block, dict) and block.get('type') == 'text':
+                        text_content += block.get('text', '')
+                
+                if text_content:
+                    # Try to parse as JSON (LangExtract format)
+                    try:
+                        # Try to extract JSON from text if it's wrapped in markdown code blocks
+                        json_text = text_content
+                        if '```json' in text_content:
+                            # Extract JSON from markdown code block
+                            start = text_content.find('```json') + 7
+                            end = text_content.find('```', start)
+                            if end > start:
+                                json_text = text_content[start:end].strip()
+                        elif '```' in text_content:
+                            # Extract from generic code block
+                            start = text_content.find('```') + 3
+                            end = text_content.find('```', start)
+                            if end > start:
+                                json_text = text_content[start:end].strip()
+                        
+                        parsed = json.loads(json_text)
+                        if isinstance(parsed, dict):
+                            # Ensure it has extractions key
+                            if 'extractions' not in parsed:
+                                # If the parsed dict itself looks like an extraction, wrap it
+                                if 'class' in parsed or 'text' in parsed:
+                                    return {'extractions': [parsed]}
+                                # Otherwise wrap the whole dict as a single extraction
+                                return {'extractions': [parsed]}
+                            return parsed
+                        elif isinstance(parsed, list):
+                            # If it's a list, assume it's a list of extractions
+                            return {'extractions': parsed}
+                    except json.JSONDecodeError as e:
+                        # If not JSON, might be plain text - log for debugging
+                        logger.warning('Response text is not valid JSON for %s. Error: %s. Text preview: %s', 
+                                     entity_type, str(e), text_content[:300])
+                        # Try to extract JSON-like structure from text
+                        # Look for JSON-like patterns
+                        json_match = re.search(r'\{[^{}]*"extractions"[^{}]*\[.*?\]', text_content, re.DOTALL)
+                        if json_match:
+                            try:
+                                parsed = json.loads(json_match.group(0))
+                                if isinstance(parsed, dict) and 'extractions' in parsed:
+                                    return parsed
+                            except:
+                                pass
+                        # Return empty result structure
+                        return {'extractions': []}
+        
+        # Check if response already has extractions key (direct LangExtract format)
+        if isinstance(response, dict) and 'extractions' in response:
+            return response
+        
+        # Check if response is a direct list of extractions
+        if isinstance(response, list):
+            return {'extractions': response}
+        
+        # If response has other structure, try to extract from common fields
+        if isinstance(response, dict):
+            # Check for common alternative keys
+            for key in ['data', 'result', 'output', 'response']:
+                if key in response:
+                    nested = response[key]
+                    if isinstance(nested, dict) and 'extractions' in nested:
+                        return nested
+                    if isinstance(nested, list):
+                        return {'extractions': nested}
+        
+        # Log the full response structure for debugging
+        logger.warning(
+            'Unexpected response format for %s. Response keys: %s, Response type: %s',
+            entity_type,
+            list(response.keys()) if isinstance(response, dict) else 'N/A',
+            type(response).__name__
+        )
+        
+        # Return empty result structure
+        return {'extractions': []}
     
     def _parse_extraction_result(self, result) -> List[Dict]:
         """Parse LangExtract result into list of dictionaries.

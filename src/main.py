@@ -8,7 +8,7 @@ import logging
 import sys
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict
 
@@ -189,7 +189,7 @@ def _map_all_entities(mapper, extracted_entities, transcript):
     """
     try:
         mapped_data = {}
-        current_timestamp = datetime.utcnow().isoformat() + 'Z'
+        current_timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 
         # Map consultation session
         mapped_data['consultation_sessions'] = mapper.generate_consultation_session(
