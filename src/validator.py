@@ -453,5 +453,5 @@ class Validator:
         for error in all_errors:
             logger.warning("Validation warning: %s", error)
 
-        # Return True even if there are warnings (non-blocking validation)
-        return True, all_errors
+        is_valid = len(all_errors) == 0
+        return is_valid, all_errors

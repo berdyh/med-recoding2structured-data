@@ -254,6 +254,7 @@ class ClinicalEntityExtractor:
 
                         result = self._build_langextract_result(parsed_response)
                     else:
+                        bedrock_client = self.llm_provider.get_bedrock_client()
                         # Standard Bedrock: Use langextract-bedrock plugin
                         # Plugin auto-detects Bedrock models via model_id and uses boto3 credentials
                         result = lx.extract(
@@ -261,6 +262,7 @@ class ClinicalEntityExtractor:
                             prompt_description=prompt_description,
                             examples=examples,
                             model_id=model_id,  # e.g., "anthropic.claude-sonnet-4-5-20250929-v1:0"
+                            bedrock_client=bedrock_client,
                             # AWS credentials from boto3 default chain (env vars,
                             # ~/.aws/credentials, IAM role)
                         )
